@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#22272e">
+<title>Crónicas de Valdemora</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Alegreya+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- Criar aventureiro -->
+  <section id="ecra-criar" class="ecra" hidden>
+    <div class="rolo">
+      <h1 class="logo">Crónicas de<br>Valdemora</h1>
+      <p class="sub">Expedições curtas a criptas, minas e ruínas. Cada aventureiro com os seus dados, num mundo que se lembra de ti.</p>
+      <label class="campo">Nome do aventureiro
+        <input id="in-nome" maxlength="20" autocomplete="off" placeholder="Ex.: Inês de Corvamonte">
+      </label>
+      <div class="campo-t">Escolhe a classe</div>
+      <div id="classes" class="classes"></div>
+      <button id="bt-comecar" class="bt bt-p">Começar campanha</button>
+      <button id="bt-importar-ini" class="bt bt-s">Importar campanha</button>
+    </div>
+  </section>
+
+  <!-- Aldeia / região -->
+  <section id="ecra-aldeia" class="ecra" hidden>
+    <div id="aldeia" class="rolo"></div>
+  </section>
+
+  <!-- Expedição -->
+  <section id="ecra-exp" class="ecra ecra-exp" hidden>
+    <header class="estado">
+      <div id="st-token" class="token"></div>
+      <div class="est-m">
+        <div class="linha1"><span id="st-nome" class="st-nome"></span><span class="perigo" id="st-perigo" title="Perigo"></span><span id="st-ouro" class="ouro"></span><button id="bt-som" class="bt-ic" aria-label="Som"></button></div>
+        <div class="pv"><div class="pv-t"><div id="st-pvf" class="pv-f"></div><div id="st-pv" class="pv-b"></div></div><span id="st-pvt"></span></div>
+        <div id="st-dados" class="chips"></div>
+      </div>
+    </header>
+    <div class="mapa-wrap" id="mapa-wrap">
+      <canvas id="mapa" aria-label="Mapa da masmorra"></canvas>
+      <div id="sala-tit" class="sala-tit"></div>
+      <div class="zoom">
+        <button data-zoom="1" aria-label="Aproximar">+</button>
+        <button data-zoom="-1" aria-label="Afastar">−</button>
+        <button data-zoom="0" aria-label="Centrar no aventureiro">◎</button>
+      </div>
+      <div id="dado" class="dado" hidden></div>
+    </div>
+    <div class="painel">
+      <div id="narr" class="narr" aria-live="polite"></div>
+      <div id="acoes" class="acoes"></div>
+      <nav class="abas">
+        <button data-folha="mochila">Mochila</button>
+        <button data-folha="registo">Pistas e registo</button>
+        <button data-folha="menu">Menu</button>
+      </nav>
+    </div>
+  </section>
+
+  <!-- Resumo da expedição -->
+  <section id="ecra-resumo" class="ecra" hidden>
+    <div id="resumo" class="rolo"></div>
+  </section>
+
+  <!-- Folha deslizante (mochila, registo, regras, campanha) -->
+  <div id="fx" class="fx" aria-hidden="true"></div>
+  <div id="folha" class="folha" hidden>
+    <div class="folha-c">
+      <button class="fechar" data-fechar aria-label="Fechar">×</button>
+      <div id="folha-in"></div>
+    </div>
+  </div>
+</div>
+
+<script src="js/rng.js"></script>
+<script src="js/art.js"></script>
+<script src="js/sfx.js"></script>
+<script src="js/fichas.js"></script>
+<script src="js/data.js"></script>
+<script src="js/gen.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/save.js"></script>
+<script src="js/ui.js"></script>
+<script>
+  if ('serviceWorker' in navigator && location.protocol === 'https:' && !location.hostname.endsWith('claude.ai')) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+</script>
+</body>
+</html>
