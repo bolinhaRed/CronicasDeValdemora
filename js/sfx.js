@@ -78,6 +78,7 @@
 
   // Ambiente: vento abafado e um zumbido grave, muito baixo
   function ambiente(ligar) {
+    if (ligar && CP.Musica && CP.Musica.ligada()) ligar = false; // com música, sem zumbido
     const c = SND.on && ligar ? ac() : SND.ctx;
     if (ligar && SND.on && c && !SND.amb) {
       const n = c.sampleRate * 3, b = c.createBuffer(1, n, c.sampleRate), d = b.getChannelData(0);

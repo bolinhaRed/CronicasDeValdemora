@@ -88,6 +88,7 @@
   function mostrar(id) { document.querySelectorAll('.ecra').forEach(s => { s.hidden = s.id !== id; }); }
 
   function render() {
+    CP.Musica.tocar(!st ? 'inicio' : st.ecra === 'expedicao' ? 'masmorra' : 'aldeia');
     if (!st) { renderCriar(); mostrar('ecra-criar'); return; }
     if (st.ecra === 'expedicao') { mostrar('ecra-exp'); renderExp(); }
     else if (st.ecra === 'resumo') { mostrar('ecra-resumo'); renderResumo(); }
@@ -169,7 +170,7 @@
     html += `<h3>Mochila</h3>` + slots(h) + listaMochila(false);
     html += `<h3>Campanha</h3><div class="loja"><button class="bt" data-folha="campanha"><span>Exportar ou importar</span></button>
       <button class="bt" data-folha="regras"><span>Regras</span></button>
-      <button class="bt" data-som><span>Som: ${Som.ligado() ? 'ligado' : 'desligado'}</span></button></div>`;
+      <button class="bt" data-folha="menu"><span>Som e música</span></button></div>`;
     $('#aldeia').innerHTML = html;
   }
 
@@ -198,8 +199,9 @@
     $('#st-pvt').textContent = `${h.pv}/${h.pvMax} PV`;
     $('#st-dados').innerHTML = chipsDados(h);
     $('#st-perigo').innerHTML = [1, 2, 3, 4, 5, 6].map(i => `<i class="${i <= x.perigo ? 'on' : ''} ${x.perigo >= 4 ? 'alto' : ''}"></i>`).join('');
-    $('#bt-som').textContent = Som.ligado() ? '♪' : '×';
-    $('#bt-som').setAttribute('aria-label', Som.ligado() ? 'Desligar o som' : 'Ligar o som');
+    const somOn = Som.ligado() || CP.Musica.ligada();
+    $('#bt-som').textContent = somOn ? '♪' : '×';
+    $('#bt-som').setAttribute('aria-label', somOn ? 'Desligar som e música' : 'Ligar som e música');
     const s = x.d.salas[x.sala];
     $('#sala-tit').textContent = `${s.nome} · ${E.nomeSala(s)}`;
   }
@@ -640,7 +642,8 @@
         <button class="bt" data-fechar><span>Continuar a jogar</span></button>
         ${naExp ? `<button class="bt" data-desistir><span>Desistir desta masmorra</span><small>Voltas já à aldeia com o que encontraste. A missão sai do quadro e a reputação desce 1.</small></button>` : ''}
         <button class="bt" data-folha="regras"><span>Regras</span></button>
-        <button class="bt" data-som><span>Som: ${Som.ligado() ? 'ligado' : 'desligado'}</span></button>
+        <button class="bt" data-som><span>Efeitos sonoros: ${Som.ligado() ? 'ligados' : 'desligados'}</span></button>
+        <button class="bt" data-musica><span>Música: ${CP.Musica.ligada() ? 'ligada' : 'desligada'}</span></button>
         <button class="bt" data-folha="campanha"><span>Exportar ou importar campanha</span></button>
         <button class="bt" data-nova><span>Nova campanha</span><small>Apaga a campanha atual e volta à criação do aventureiro.</small></button></div>`;
     }
@@ -684,6 +687,13 @@
       a.download = `cronicas-${st.hero.nome.toLowerCase().replace(/\s+/g, '-')}.json`; a.click(); return;
     }
     if (D.importar !== undefined) { const f = $('#fi-imp').files[0]; if (f) f.text().then(importar); else importar($('#tx-imp').value); return; }
+    if (D.musica !== undefined) { CP.Musica.desbloquear(); CP.Musica.alternar(); if (st && st.ecra === 'expedicao') Som.ambiente(true); abrirFolha('menu'); return; }
+    if (b.id === 'bt-som') {   // botão do cabeçalho: liga ou desliga tudo
+      const ligar = !(Som.ligado() || CP.Musica.ligada());
+      if (Som.ligado() !== ligar) Som.alternar();
+      if (CP.Musica.ligada() !== ligar) { CP.Musica.desbloquear(); CP.Musica.alternar(); }
+      Som.ambiente(ligar); if (ligar) Som.tocar('pick'); renderEstado(); return;
+    }
     if (D.desistir !== undefined) { if (confirm('Desistir desta masmorra? Voltas à aldeia e a reputação desce.')) { fecharFolha(); Som.ambiente(false); executar({ tipo: 'desistir' }); } return; }
     if (D.nova !== undefined) { if (confirm('Apagar a campanha atual? Esta ação não se desfaz.')) { CP.Save.apagar(); st = null; Som.ambiente(false); fecharFolha(); render(); } return; }
   });
@@ -697,5 +707,6 @@
   render();
   if (st && st.ecra === 'expedicao') requestAnimationFrame(() => { Mapa.ajustar(); Mapa.sujo = true; Mapa.centrar(true, true); });
   // o som ambiente só pode começar depois de um toque
-  document.addEventListener('pointerdown', () => { if (st && st.ecra === 'expedicao') Som.ambiente(true); }, { once: true });
+  document.addEventListener('pointerdown', () => { CP.Musica.desbloquear(); }, { capture: true });
+  document.addEventListener('keydown', () => { CP.Musica.desbloquear(); }, { capture: true });
 })(window);

@@ -19,3 +19,10 @@ RPG de exploração solitária em HTML, CSS e JavaScript puro. Sem frameworks, s
 
 ## Acrescentar uma missão
 Copia um bloco de `CP.MISSOES` em `js/data.js` e muda o texto, o chefe, o objeto-chave, as três pistas e as soluções. Depois corre `node tools/teste.js` para confirmar que todas as masmorras geradas são completáveis.
+
+## Música
+- `audio/inicio.mp3` — "The Longest Journey" (nakaradaalexander), no ecrã inicial.
+- `audio/aldeia.mp3` — "D&D Acoustic Loop" (ebunny), na aldeia.
+- `audio/masmorra.mp3` — "The Ancient Temple" (Tim Kulig), dentro das masmorras.
+
+As faixas foram comprimidas (mono, 48 kbps) para o jogo ficar leve. Confirma a licença de cada uma na página de origem antes de publicar.
