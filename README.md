@@ -2,6 +2,8 @@
 
 RPG de exploração solitária em HTML, CSS e JavaScript puro. Sem frameworks, sem servidor, funciona sem internet depois da primeira visita (PWA).
 
+ https://bolinhared.github.io/CronicasDeValdemora/
+
 ## Publicar no GitHub Pages
 1. Cria um repositório e envia todos os ficheiros desta pasta (exceto `dist/`, que é opcional).
 2. Em *Settings → Pages*, escolhe o ramo `main` e a pasta `/ (root)`.
