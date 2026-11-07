@@ -1,32 +1,45 @@
 # Crónicas de Valdemora
 
-RPG de exploração solitária em HTML, CSS e JavaScript puro. Sem frameworks, sem servidor, funciona sem internet depois da primeira visita (PWA).
+RPG de exploração solitária, em expedições curtas de 5 a 15 minutos. Escolhes uma missão, desces a uma cripta, mina ou ruína, investigas, resolves o mistério e voltas à aldeia. O mundo lembra-se do que fizeste.
 
-## Publicar no GitHub Pages
-1. Cria um repositório e envia todos os ficheiros desta pasta (exceto `dist/`, que é opcional).
-2. Em *Settings → Pages*, escolhe o ramo `main` e a pasta `/ (root)`.
-3. Abre o endereço no telemóvel e escolhe "Adicionar ao ecrã principal".
+**▶ Jogar agora:** https://bolinhared.github.io/CronicasDeValdemora/
 
-## Estrutura
-- `js/rng.js` — gerador aleatório com semente (reprodutível).
-- `js/data.js` — classes, objetos, monstros, textos e modelos de missão. **É aqui que se acrescenta conteúdo.**
-- `js/gen.js` — gera o mapa, coloca a missão e valida que tudo é alcançável.
-- `js/engine.js` — regras do jogo. Não toca na interface.
-- `js/save.js` — gravação automática (localStorage), exportação e importação.
-- `js/ui.js` — ecrãs, mapa (canvas com zoom e arrasto) e dado animado.
-- `tools/teste.js` — testes automáticos (`node tools/teste.js`).
-- `tools/build.py` — junta tudo num único `dist/cronicas.html`.
+## Características
+- **Masmorras geradas em cada expedição**, com nevoeiro de guerra, portas trancadas, passagens secretas, armadilhas e uma câmara oculta com enigma.
+- **Mistérios coerentes:** o culpado, as pistas e as soluções ficam definidos antes de entrares. Cada missão pode resolver-se pela força ou de forma pacífica.
+- **Dados por personagem:** cada atributo é um dado, de d4 a d12. Precisas de 4 ou mais, e subir de nível melhora o dado.
+- **Quatro classes:** Guerreiro, Ladrão, Explorador e Místico, cada uma com uma forma diferente de jogar.
+- **Mundo persistente:** reputação nas aldeias, missões que desbloqueiam novas regiões, personagens e locais que mudam com as tuas escolhas.
+- **Relógio de Perigo:** o barulho e as falhas atraem criaturas errantes.
+- **Música ambiente, efeitos sonoros e efeitos visuais.**
+- **Gravação automática**, com exportação e importação de campanhas.
 
-## Acrescentar uma missão
-Copia um bloco de `CP.MISSOES` em `js/data.js` e muda o texto, o chefe, o objeto-chave, as três pistas e as soluções. Depois corre `node tools/teste.js` para confirmar que todas as masmorras geradas são completáveis.
+## Instalar no telemóvel
+Abre o link no navegador e escolhe **"Adicionar ao ecrã principal"**. Depois da primeira visita, o jogo funciona sem internet.
 
-## Música
-- `audio/inicio.mp3` — "The Longest Journey" (nakaradaalexander), no ecrã inicial.
-- `audio/aldeia.mp3` — "D&D Acoustic Loop" (ebunny), na aldeia.
-- `audio/masmorra.mp3` — "The Ancient Temple" (Tim Kulig), dentro das masmorras.
+## Como jogar
+- Toca numa sala conhecida do mapa para ires até lá. Arrasta para mover e usa dois dedos ou os botões **+ / −** para o zoom.
+- As ações disponíveis aparecem por baixo da narrativa.
+- Para guardares o que encontraste, sai pela entrada. A masmorra fica como a deixaste.
+- No **Menu** podes desistir de uma masmorra, ligar ou desligar o som e a música, exportar a campanha ou começar uma nova.
 
-As faixas foram comprimidas (mono, 48 kbps) para o jogo ficar leve. Confirma a licença de cada uma na página de origem antes de publicar.
+## Estrutura do projeto
+| Ficheiro | Função |
+|---|---|
+| `js/data.js` | Classes, objetos, monstros, textos e missões. **Para acrescentar conteúdo, é aqui.** |
+| `js/gen.js` | Geração e validação das masmorras |
+| `js/engine.js` | Regras do jogo (separadas da interface) |
+| `js/ui.js` | Ecrãs, mapa, dados animados e efeitos |
+| `js/fichas.js` | Fichas do herói, das criaturas e marcadores do mapa |
+| `js/sfx.js` / `js/musica.js` | Efeitos sonoros e música |
+| `js/save.js` | Gravação local, exportação e importação |
+| `tools/teste.js` | Testes automáticos (`node tools/teste.js`) |
 
-## Retratos e ícones
-- Retratos: "RPG Character Portraits" (Gen XIA). Ícones: "Objects" (Geloz Games).
-- Estão embutidos em `js/retratos.js` (gerado por `tools/assets.py`), porque as licenças não permitem redistribuir os ficheiros soltos.
+Feito em HTML, CSS e JavaScript puro, sem frameworks nem servidor.
+
+## Créditos
+- **Música:**
+  - "The Longest Journey", de nakaradaalexander;
+  - "D&D Acoustic Loop", de ebunny;
+  - "The Ancient Temple", de Tim Kulig.
+- **Sprites de pixel art:** do projeto Mestre da Masmorra.
