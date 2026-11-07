@@ -240,3 +240,28 @@ img.ic { width: 26px; height: 26px; image-rendering: pixelated; vertical-align: 
 .d-pv { display: flex; gap: 3px; justify-content: center; margin: 3px 0 1px; }
 .d-pv i { width: 10px; height: 6px; border-radius: 2px; background: #3a2422; }
 .d-pv i.on { background: linear-gradient(#ef6a52, #a8372a); }
+
+canvas.token.rt { width: 46px; height: 46px; image-rendering: pixelated; }
+.duelo canvas { width: 48px; height: 48px; border-radius: 50%; display: block; background: radial-gradient(circle at 50% 40%, #3a3f4c, #1b1a29); image-rendering: pixelated; }
+.duelo .d-l canvas { border: 2px solid #e2c98e; }
+.duelo .d-r canvas { border: 2px solid #b8432f; transform: scaleX(-1); }
+.duelo .d-r.chefe canvas { border-color: #f0c84a; box-shadow: 0 0 10px rgba(240,200,74,.5); }
+.token.rt img { transform: none; }
+
+/* ---------- Cena da aldeia ---------- */
+.cena { position: relative; margin: 0 -16px; }
+.cena canvas { width: 100%; display: block; image-rendering: pixelated; border-bottom: 2px solid #1a1e23; }
+.cena h2 { position: absolute; left: 16px; bottom: 8px; margin: 0; font-size: 26px; text-shadow: 0 2px 0 #000, 0 0 12px #000; }
+.cena .bt-menu { top: 10px; right: 12px; background: rgba(38,44,51,.85); }
+@media (min-width: 640px) { .cena { margin: 0; } .cena canvas { border-radius: 12px; } }
+/* ---------- Livro ---------- */
+.livro { position: relative; width: min(100%, 400px); aspect-ratio: 1; margin: -10px auto -12px; }
+.livro canvas { width: 100%; height: 100%; image-rendering: pixelated; }
+.livro .pags { position: absolute; inset: 0; opacity: 0; transition: opacity .4s; }
+.livro .pags.on { opacity: 1; }
+.livro .pag { position: absolute; top: 36%; height: 52%; width: 34%; overflow-y: auto; font: 13px/1.3 var(--fonte-t); color: #3d2b1c; scrollbar-width: thin; }
+.livro .pag.e { left: 11%; } .livro .pag.d { left: 55%; }
+.livro .pag b { display: block; font-weight: 400; font-size: 15px; color: #7a2e22; margin-top: 4px; }
+.livro .pag p { margin: 2px 0 6px; }
+/* ícones de feitiço nos botões */
+img.fi { width: 20px; height: 20px; vertical-align: -4px; margin-right: 6px; image-rendering: pixelated; border-radius: 3px; }

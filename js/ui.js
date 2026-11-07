@@ -60,23 +60,11 @@
   const IMG_OBJ = {};
   const imgObj = n => { if (IMG_OBJ[n]) return IMG_OBJ[n]; const i = new Image(); i.onload = () => { Mapa.sujo = true; }; i.src = CP.OBJ[n]; return (IMG_OBJ[n] = i); };
 
-  // expressão do herói: uma base (combate, pouca vida) e reações curtas aos eventos
-  let exprTemp = null, exprAte = 0;
-  function exprBase() {
-    if (!st) return 'neutral';
-    if (st.exp && (st.exp.combate || st.exp.confronto)) return 'angry';
-    if (st.hero.pv / st.hero.pvMax <= .3) return 'sad';
-    return 'neutral';
-  }
-  const exprAtual = () => (exprTemp && performance.now() < exprAte ? exprTemp : exprBase());
-  function reagir(expr) {
-    exprTemp = expr; exprAte = performance.now() + 1300;
-    const im = document.querySelector('#st-token img'); if (im) im.src = retrato(RET_CLASSE[st.hero.classe], expr);
-    clearTimeout(reagir.t);
-    reagir.t = setTimeout(() => { const i = document.querySelector('#st-token img'); if (i && st) i.src = retrato(RET_CLASSE[st.hero.classe], exprBase()); }, 1350);
-  }
-  const tokenHTML = (classe, extra, expr) =>
-    `<div class="token rt" style="--cor:${COR[classe]}" ${extra || ''}><img class="px" src="${retrato(RET_CLASSE[classe], expr || 'neutral')}" alt="${CP.CLASSES[classe].nome}"></div>`;
+  const exprBase = () => 'neutral';
+  const IMG_SPR = {};
+  const imgSprite = (classe, anim, f) => { const k = classe + (anim || '') + (f || 0); return IMG_SPR[k] || (IMG_SPR[k] = CP.Spr.imagem(CP.Spr.CLASSE[classe], anim, 96, f)); };
+  const tokenHTML = (classe, extra, anim, f) =>
+    `<div class="token rt" style="--cor:${COR[classe]}" ${extra || ''}><img class="px" src="${imgSprite(classe, anim, f)}" alt="${CP.CLASSES[classe].nome}"></div>`;
 
   /* ================= Fluxo principal ================= */
   async function executar(a) {
@@ -137,7 +125,7 @@
     $('#classes').innerHTML = Object.entries(CP.CLASSES).map(([id, c]) => {
       const h = { classe: id, attrs: c.attrs };
       return `<button class="classe" data-classe="${id}" aria-pressed="${id === classeEscolhida}">
-        ${tokenHTML(id, '', id === classeEscolhida ? 'happy' : 'neutral')}<b>${c.nome} <small style="font:14px var(--fonte);color:var(--texto-2)">${c.pv} PV</small></b>
+        ${tokenHTML(id)}<b>${c.nome} <small style="font:14px var(--fonte);color:var(--texto-2)">${c.pv} PV</small></b>
         <span>${c.desc}</span><div class="chips">${chipsDados(h)}</div></button>`;
     }).join('');
   }
@@ -156,11 +144,11 @@
   function renderAldeia() {
     const h = st.hero, M = st.mundo, c = CP.CLASSES[h.classe];
     const arma = CP.ITENS[h.arma];
-    let html = `<div class="capa"><img class="px fogo e" src="${CP.ART.fire}" alt=""><img class="px fogo d" src="${CP.ART.fire}" alt=""><h2 style="text-align:center;margin:0">Região de Corvamonte</h2><button class="bt-menu" data-folha="menu">Menu</button></div>`;
+    let html = `<div class="cena"><canvas id="cena-aldeia" width="384" height="144" aria-label="Aldeia de Corvamonte"></canvas><h2>Região de Corvamonte</h2><button class="bt-menu" data-folha="menu">Menu</button></div>`;
     html += ultimos.filter(e => e.t !== 'd').map(e => `<p class="aviso">${esc(e.s)}</p>`).join('');
     ultimos = [];
 
-    html += `<div class="cartao">${tokenHTML(h.classe, '', h.niveisPend ? 'happy' : exprBase())}<div class="nome">${esc(h.nome)}</div>
+    html += `<div class="cartao">${tokenHTML(h.classe)}<div class="nome">${esc(h.nome)}</div>
       <div class="ficha"><span>${c.nome} de nível <b>${h.nivel}</b></span><span>Vida <b>${h.pv}/${h.pvMax}</b></span><span>Ouro <b>${h.ouro}</b></span><span>XP <b>${h.xp}/${E.xpProx(h.nivel)}</b></span></div>
       <div class="chips">${chipsDados(h)}</div>
       <div class="ficha" style="grid-column:1/-1"><span>${arma.nome} <b>dano ${arma.dano}${arma.atk ? ', +' + arma.atk : ''}</b></span>
@@ -219,10 +207,71 @@
     }).join('');
   }
 
+  /* ================= Cena da aldeia (tileset da fortaleza) ================= */
+  const Cena = {
+    fixa: null,
+    construir() {
+      const I = CP.Spr.IMG, c = document.createElement('canvas'); c.width = 384; c.height = 144;
+      const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
+      const a = n => I['aldeia/' + n];
+      const pe = (n, px, py) => { const i = a(n); if (i) x.drawImage(i, Math.round(px - i.width / 2), Math.round(py - i.height)); };
+      for (let i = 0; i < 24; i++) for (let j = 0; j < 9; j++) if (a('relva')) x.drawImage(a('relva'), i * 16, j * 16);
+      for (let i = 0; i < 24; i++) for (const j of [6, 7]) if (a('terra')) x.drawImage(a('terra'), i * 16, j * 16);
+      for (const j of [3, 4, 5]) for (const i of [11, 12]) if (a('terra')) x.drawImage(a('terra'), i * 16, j * 16);
+      for (let i = 0; i < 12; i++) if (a('muro')) x.drawImage(a('muro'), i * 32, 0);
+      x.fillStyle = '#16141f'; x.fillRect(180, 22, 24, 26); pe('arco', 192, 48);
+      x.fillStyle = 'rgba(0,0,0,.25)'; x.fillRect(0, 48, 384, 4);
+      [['flor1', 30, 120], ['flor2', 90, 132], ['flor3', 150, 92], ['flor1', 225, 132], ['flor2', 320, 70], ['flor3', 360, 128], ['pedra1', 60, 100], ['pedra2', 345, 90]].forEach(([n, px, py]) => pe(n, px, py));
+      pe('cerca1', 82, 78); pe('cerca2', 104, 80); pe('caixa', 128, 62); pe('barril', 145, 64); pe('saco', 240, 64); pe('barril', 256, 66);
+      pe('arvore1', 18, 98); pe('arvore3', 50, 82); pe('arvore2', 30, 140); pe('pinheiros', 360, 96); pe('arvore1', 372, 148); pe('arvore3', 330, 140);
+      this.fixa = c;
+    },
+    frame(t) {
+      const cv = document.getElementById('cena-aldeia'); if (!cv || !CP.Spr.IMG['aldeia/relva']) return;
+      if (!this.fixa) this.construir();
+      const x = cv.getContext('2d'), I = CP.Spr.IMG, mov = !reduzido(); x.imageSmoothingEnabled = false;
+      x.drawImage(this.fixa, 0, 0);
+      const quadro = (img, n, f, px, py) => { if (!img) return; const w = img.width / n; x.drawImage(img, (f % n) * w, 0, w, img.height, Math.round(px - w / 2), Math.round(py - img.height), w, img.height); };
+      const tq = mov ? Math.floor(t / 110) : 0;
+      quadro(I['aldeia_anim/tocha'], 4, tq, 160, 36); quadro(I['aldeia_anim/tocha'], 4, tq + 2, 224, 36);
+      quadro(I['aldeia_anim/fogueira'], 5, tq, 286, 112);
+      const S = CP.Spr, tt = mov ? t : 0;
+      S.personagem(x, 'guarda', 'Idle', 'S', tt, 160, 76, 1, false);
+      S.personagem(x, 'aldea', 'Idle', 'S', tt + 300, 258, 116, 1, false);
+      S.personagem(x, 'aldeao', 'Idle', 'S', tt + 700, 314, 118, 1, true);
+      if (st) S.personagem(x, S.CLASSE[st.hero.classe], 'Idle', 'D', tt, 196, 84, 1, false);
+      // luz de fim de tarde e brilho das chamas
+      x.fillStyle = 'rgba(255,160,80,.08)'; x.fillRect(0, 0, 384, 144);
+      x.globalCompositeOperation = 'lighter';
+      const fl = mov ? Math.sin(t / 90) * .03 : 0;
+      for (const [px, py, r] of [[286, 100, 46], [160, 28, 22], [224, 28, 22]]) {
+        const g = x.createRadialGradient(px, py, 0, px, py, r); g.addColorStop(0, `rgba(255,170,80,${.22 + fl})`); g.addColorStop(1, 'rgba(255,170,80,0)');
+        x.fillStyle = g; x.fillRect(px - r, py - r, r * 2, r * 2);
+      }
+      x.globalCompositeOperation = 'source-over';
+      const v = x.createRadialGradient(192, 72, 120, 192, 72, 230); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(10,10,20,.55)');
+      x.fillStyle = v; x.fillRect(0, 0, 384, 144);
+    }
+  };
+
+  /* ================= Livro de pistas (Magic Book) ================= */
+  const Livro = { t0: 0, ativo: false,
+    abrir() { this.t0 = performance.now(); this.ativo = true; },
+    frame(t) {
+      const cv = document.getElementById('livro-cv'); if (!cv) { this.ativo = false; return; }
+      const img = CP.Spr.IMG.livro; if (!img) return;
+      const f = reduzido() ? 11 : Math.min(11, Math.floor((t - this.t0) / 70));
+      const x = cv.getContext('2d'); x.imageSmoothingEnabled = false; x.clearRect(0, 0, 272, 272);
+      x.drawImage(img, (f % 4) * 272, Math.floor(f / 4) * 272, 272, 272, 0, 0, 272, 272);
+      const pags = document.querySelector('.livro .pags'); if (pags && f >= 11) pags.classList.add('on');
+    }
+  };
+
   /* ================= Expedição ================= */
   function renderEstado(pvAntes) {
     const h = st.hero, x = st.exp; if (!x) return;
-    $('#st-token').outerHTML = tokenHTML(h.classe, 'id="st-token"', exprAtual());
+    if ($('#st-token').tagName !== 'CANVAS') $('#st-token').outerHTML = `<canvas id="st-token" class="token rt" width="96" height="96" style="--cor:${COR[h.classe]}"></canvas>`;
+    else $('#st-token').style.setProperty('--cor', COR[h.classe]);
     renderDuelo();
     $('#st-nome').textContent = h.nome;
     $('#st-ouro').textContent = h.ouro;
@@ -249,6 +298,11 @@
     return `<p class="${e.t}">${e.t === 'pista' ? 'Pista: ' : ''}${esc(e.s)}</p>`;
   }
 
+  function iconeAcao(a) {
+    const n = a.tipo === 'ritual' ? { luz: 3, cura: 14, banir: 4 }[a.r]
+      : { fugir: 17, esgueirar: 16, investigar: 2, descansar: 15, atacar: 20, atacar_chefe: 20, surpresa: 20 }[a.tipo] || (a.tipo === 'usar' && a.item === 'oleo' ? 1 : 0);
+    return n && CP.KIT.feitico[n] ? `<img class="px fi" src="${CP.KIT.feitico[n]}" alt="">` : '';
+  }
   function renderExp() {
     renderEstado();
     const narr = $('#narr');
@@ -258,27 +312,28 @@
     }
     acoesAtuais = E.acoes(st);
     $('#acoes').innerHTML = acoesAtuais.map((a, i) =>
-      `<button class="bt ${a.grupo || ''}" data-acao="${i}" ${a.off ? 'disabled' : ''}>${esc(a.rotulo)}${a.off ? ` <small>(${a.motivo})</small>` : ''}</button>`).join('');
+      `<button class="bt ${a.grupo || ''}" data-acao="${i}" ${a.off ? 'disabled' : ''}>${iconeAcao(a)}${esc(a.rotulo)}${a.off ? ` <small>(${a.motivo})</small>` : ''}</button>`).join('');
     Mapa.sujo = true;
   }
 
   /* ================= Barra de combate (retratos frente a frente) ================= */
   const IMG_MED = {};
-  function renderDuelo(exprInimigo) {
+  function inimigoAtual() {
+    const x = st && st.exp, s = x && x.d.salas[x.sala];
+    return s && (x.combate || x.confronto) ? (s.monstros.find(o => o.pv > 0 && (o.acordado || o.chefe)) || s.monstros.find(o => o.pv > 0)) : null;
+  }
+  function renderDuelo() {
     const el = $('#duelo'); if (!el) return;
-    const x = st && st.exp;
-    const s = x && x.d.salas[x.sala];
-    const m = s && (x.combate || x.confronto) ? (s.monstros.find(o => o.pv > 0 && (o.acordado || o.chefe)) || s.monstros.find(o => o.pv > 0)) : null;
+    const m = inimigoAtual();
     if (!m) { el.hidden = true; return; }
-    const quem = RET_MONSTRO[m.tipo];
-    const img = quem ? retrato(quem, m.pv <= 1 ? 'hurt' : (exprInimigo || 'angry'))
-      : (IMG_MED[m.tipo + m.chefe] || (IMG_MED[m.tipo + m.chefe] = CP.Fichas.imagemMonstro(m, 64)));
+    const x = st.exp;
+    const dir = CP.Spr.temSprite(m.tipo) ? `<canvas id="duelo-m" width="96" height="96"></canvas>`
+      : `<img src="${IMG_MED[m.tipo + m.chefe] || (IMG_MED[m.tipo + m.chefe] = CP.Fichas.imagemMonstro(m, 64))}" alt="">`;
     el.hidden = false;
-    el.innerHTML = `<div class="d-l"><img class="px" src="${retrato(RET_CLASSE[st.hero.classe], exprAtual())}" alt=""></div>
+    el.innerHTML = `<div class="d-l"><canvas id="duelo-h" width="96" height="96"></canvas></div>
       <div class="d-m"><b>${esc(m.nome)}</b><div class="d-pv">${[...Array(m.pvMax)].map((_, i) => `<i class="${i < m.pv ? 'on' : ''}"></i>`).join('')}</div>
       <small>${x.confronto ? 'Ainda não atacou' : 'Em combate'}${m.morto ? ' · morto-vivo' : ''}</small></div>
-      <div class="d-r ${m.chefe ? 'chefe' : ''}"><img class="${quem ? 'px' : ''}" src="${img}" alt=""></div>`;
-    if (exprInimigo) setTimeout(() => renderDuelo(), 700);
+      <div class="d-r ${m.chefe ? 'chefe' : ''}">${dir}</div>`;
   }
 
   /* ================= Resumo ================= */
@@ -286,7 +341,7 @@
     const r = st.resumo;
     const tit = { sucesso: 'Missão cumprida', retirada: 'Retirada', derrota: 'Derrota' }[r.tipo];
     const ex = { sucesso: 'happy', retirada: 'neutral', derrota: 'hurt' }[r.tipo];
-    $('#resumo').innerHTML = `<div class="resumo-ban ${r.tipo}"><img class="px ret-g" src="${retrato(RET_CLASSE[st.hero.classe], ex)}" alt=""><h2>${tit}</h2><p class="p2">${esc(r.titulo)}</p></div>` +
+    $('#resumo').innerHTML = `<div class="resumo-ban ${r.tipo}"><img class="px ret-g" src="${imgSprite(st.hero.classe, ex === 'hurt' ? 'Hurt' : 'Idle', ex === 'hurt' ? 1 : 0)}" alt=""><h2>${tit}</h2><p class="p2">${esc(r.titulo)}</p></div>` +
       r.linhas.map((l, i) => `<p class="${i === 0 && r.tipo === 'sucesso' ? 'eco' : ''}">${esc(l)}</p>`).join('') +
       `<div class="ficha"><span>Ouro ganho <b>${r.ouro}</b></span><span>Experiência ganha <b>${r.xp}</b></span></div>
        <button class="bt bt-p" data-voltar>Voltar à aldeia</button>`;
@@ -324,10 +379,25 @@
 
   const REACAO = { hurt: 'hurt', trap: 'surprised', reveal: 'surprised', boss: 'surprised', growl: 'angry', miss: 'angry', omen: 'surprised',
     coin: 'happy', pick: 'happy', kill: 'happy', win: 'happy', peace: 'happy', heal: 'happy', block: 'happy', door: 'neutral', lose: 'sad' };
+  function animarEvento(e) {
+    const x = st.exp, s = x.d.salas[x.sala], ps = Mapa.posMonstros(s, true);
+    const vivo = ps.find(p => p.m.pv > 0 && (p.m.acordado || p.m.chefe)) || ps.find(p => p.m.pv > 0);
+    const emCombate = x.combate || x.confronto || ['hit', 'miss', 'kill', 'block'].includes(e.fx);
+    if (['hit', 'miss', 'fire'].includes(e.fx)) Mapa.animar('heroi', 'Attack');
+    if (e.fx === 'hurt') { Mapa.animar('heroi', 'Hurt'); if (emCombate && vivo) Mapa.animar(vivo.key, 'Attack'); }
+    if (e.fx === 'block' && vivo) Mapa.animar(vivo.key, 'Attack');
+    if ((e.fx === 'hit' || e.fx === 'fire') && vivo) Mapa.animar(vivo.key, 'Hurt');
+    if (e.fx === 'kill') {
+      Mapa.jaMortos = Mapa.jaMortos || new Set();
+      const p = ps.find(p => p.m.pv <= 0 && !p.m.pacificado && !Mapa.jaMortos.has(x.mid + p.key));
+      if (p) { Mapa.jaMortos.add(x.mid + p.key); if (CP.Spr.temSprite(p.m.tipo)) Mapa.morrer({ chave: CP.Spr.MONSTRO[p.m.tipo], x: p.x, y: p.y, esc: CP.Spr.ESCALA[p.m.tipo] || 1 }); }
+    }
+    if (e.fx === 'lose') Mapa.animar('heroi', 'Death');
+    renderDuelo();
+  }
   function efeito(e) {
     Som.tocar(e.fx);
-    if (st && st.exp && REACAO[e.fx]) reagir(REACAO[e.fx]);
-    if (e.fx === 'hit') renderDuelo('hurt');
+    if (st && st.exp) animarEvento(e);
     if (reduzido() && ['hurt', 'trap'].includes(e.fx)) { /* sem tremer */ }
     const H = Mapa.ecraHeroi(), Mo = Mapa.ecraMonstro();
     const wH = Mapa.mundoHeroi(), wM = Mapa.mundoMonstro();
@@ -359,7 +429,7 @@
 
   const Mapa = {
     C: 32, esc: 1, ox: 0, oy: 0, w: 0, h: 0, dpr: 1, ptrs: new Map(), gesto: null, sujo: true,
-    heroi: null, parts: [], ultimo: 0,
+    heroi: null, parts: [], ultimo: 0, anims: {}, mortes: [],
     init() {
       this.cv = $('#mapa'); this.ctx = this.cv.getContext('2d');
       this.est = document.createElement('canvas'); this.luz = document.createElement('canvas');
@@ -398,7 +468,12 @@
         this.limitar();
       }));
       new ResizeObserver(() => { this.ajustar(); this.centrar(false, true); }).observe(cv);
-      const ciclo = t => { requestAnimationFrame(ciclo); if (t - this.ultimo < 33) return; const dt = Math.min(.1, (t - this.ultimo) / 1000); this.ultimo = t; this.frame(t, dt); };
+      const ciclo = t => {
+        requestAnimationFrame(ciclo); if (t - this.ultimo < 33) return;
+        const dt = Math.min(.1, (t - this.ultimo) / 1000); this.ultimo = t; this.frame(t, dt);
+        if (!$('#ecra-aldeia').hidden) Cena.frame(t);
+        if (!$('#folha').hidden) Livro.frame(t);
+      };
       requestAnimationFrame(ciclo);
     },
     ajustar() {
@@ -427,9 +502,10 @@
       this.limitar();
     },
     // posições
-    posMonstros(s) {
-      const c = Gen.centro(s), offs = [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, -1], [-1, 0]];
-      return s.monstros.filter(m => m.pv > 0).map((m, i) => ({ m, x: (c.x + .5 + offs[i % 6][0] * Math.min(1, (s.w - 1) / 2)) * this.C, y: (c.y + .5 + offs[i % 6][1] * Math.min(1, (s.h - 1) / 2)) * this.C }));
+    posMonstros(s, todos) {
+      const c = Gen.centro(s), offs = [[1, -1], [-1, -1], [1, 1], [-1, 1], [0, -1], [-1, 0]];
+      return s.monstros.map((m, i) => ({ m, key: s.id + '-' + i, x: (c.x + .5 + offs[i % 6][0] * Math.min(1.5, (s.w - 1) / 2)) * this.C, y: (c.y + .6 + offs[i % 6][1] * Math.min(1.2, (s.h - 1) / 2)) * this.C }))
+        .filter(p => todos || p.m.pv > 0);
     },
     mundoHeroi() { return this.heroi || (st && st.exp ? this.alvoHeroi() : null); },
     mundoMonstro() {
@@ -456,158 +532,207 @@
       executar({ tipo: 'mover', alvo: s.id });
     },
 
-    /* --- camada fixa: chão, paredes, portas e objetos --- */
+    /* --- camada fixa: chão, paredes, portas e objetos (kit CraftPix) --- */
     construir() {
-      const d = st.exp.d, C = this.C, cv = this.est;
+      const d = st.exp.d, C = this.C, cv = this.est, S = CP.Spr, kk = C / 16;
       cv.width = d.W * C; cv.height = (d.H + 1) * C;
       const ctx = cv.getContext('2d'); ctx.imageSmoothingEnabled = false;
-      ctx.fillStyle = '#14181d'; ctx.fillRect(0, 0, cv.width, cv.height);
-      // pedra bruta à volta (textura escura)
-      ctx.globalAlpha = .18;
-      if (IMG.fl6.complete) for (let x = 0; x < d.W; x++) for (let y = 0; y < d.H; y++) if (hash(x, y) % 3 === 0) ctx.drawImage(IMG.fl6, x * C, y * C, C, C);
-      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#1b1a29'; ctx.fillRect(0, 0, cv.width, cv.height);
 
       const chao = new Map();
       d.salas.forEach(s => { if (s.estado === 'explorada') for (let x = s.x; x < s.x + s.w; x++) for (let y = s.y; y < s.y + s.h; y++) chao.set(x + ',' + y, 'sala'); });
       d.arestas.forEach(e => { if (e.conhecida) e.cel.forEach(([x, y]) => { if (!chao.has(x + ',' + y)) chao.set(x + ',' + y, 'corr'); }); });
-      const tem = (x, y) => chao.has(x + ',' + y);
+      const eChao = (x, y) => chao.has(x + ',' + y);
+      const parede = new Set();
+      chao.forEach((_, k) => { const [x, y] = k.split(',').map(Number); for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) if (!eChao(x + dx, y + dy)) parede.add((x + dx) + ',' + (y + dy)); });
+      const eParede = (x, y) => parede.has(x + ',' + y);
 
-      // salas por explorar: nevoeiro
+      // salas por explorar: chão escurecido e contorno
       d.salas.forEach(s => {
         if (s.estado !== 'descoberta') return;
-        ctx.globalAlpha = .35;
-        for (let x = s.x; x < s.x + s.w; x++) for (let y = s.y; y < s.y + s.h; y++) if (IMG.fog.complete) ctx.drawImage(IMG.fog, x * C, y * C, C, C);
+        ctx.globalAlpha = .28;
+        for (let x = s.x; x < s.x + s.w; x++) for (let y = s.y; y < s.y + s.h; y++) S.tile(ctx, 9, 3, x * C, y * C, C);
         ctx.globalAlpha = 1;
-        ctx.setLineDash([6, 6]); ctx.strokeStyle = 'rgba(169,176,185,.55)'; ctx.lineWidth = 2;
+        ctx.setLineDash([6, 6]); ctx.strokeStyle = 'rgba(195,205,221,.45)'; ctx.lineWidth = 2;
         ctx.strokeRect(s.x * C + 3, s.y * C + 3, s.w * C - 6, s.h * C - 6); ctx.setLineDash([]);
         const c = Gen.centro(s);
         ctx.fillStyle = 'rgba(236,230,216,.6)'; ctx.font = `${C * 1.2}px ${getComputedStyle(document.body).getPropertyValue('--fonte-t')}`;
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', (c.x + .5) * C, (c.y + .5) * C);
       });
 
-      // chão em pedra
+      // chão
+      const PISO = [[9, 3], [9, 3], [9, 3], [9, 3], [9, 3], [2, 7], [2, 2], [3, 2], [4, 2], [2, 3], [3, 3], [4, 3], [3, 4]];
+      const PADRAO = [[15, 6], [16, 6], [15, 7], [16, 7], [15, 8], [16, 8], [17, 8], [16, 9]];
       chao.forEach((tipo, k) => {
-        const [x, y] = k.split(',').map(Number);
-        const img = IMG[FL[hash(x, y) % FL.length]];
-        if (img.complete) ctx.drawImage(img, x * C, y * C, C, C);
-        if (tipo === 'corr') { ctx.fillStyle = 'rgba(10,12,16,.22)'; ctx.fillRect(x * C, y * C, C, C); }
+        const [x, y] = k.split(',').map(Number), h = hash(x, y);
+        const t = h % 100 < 7 ? PADRAO[h % PADRAO.length] : PISO[h % PISO.length];
+        S.tile(ctx, t[0], t[1], x * C, y * C, C);
+        if (tipo === 'corr') { ctx.fillStyle = 'rgba(10,10,20,.15)'; ctx.fillRect(x * C, y * C, C, C); }
+        if (eParede(x, y - 1)) { ctx.fillStyle = 'rgba(10,10,20,.35)'; ctx.fillRect(x * C, y * C, C, C * .2); }
       });
-      // sombra junto às paredes
-      chao.forEach((_, k) => {
-        const [x, y] = k.split(',').map(Number);
-        ctx.fillStyle = 'rgba(0,0,0,.28)';
-        if (!tem(x, y - 1)) ctx.fillRect(x * C, y * C, C, C * .22);
-        if (!tem(x - 1, y)) ctx.fillRect(x * C, y * C, C * .14, C);
+      // paredes: topo claro, face quando há espaço por baixo, contorno escuro
+      const FACE = [[2, 1], [3, 1], [4, 1], [2, 5], [3, 5], [4, 5]];
+      parede.forEach(k => {
+        const [x, y] = k.split(',').map(Number), h = hash(x, y);
+        if (!eParede(x, y + 1)) {
+          const t = FACE[h % FACE.length]; S.tile(ctx, t[0], t[1], x * C, y * C, C);
+          if (eParede(x, y - 1)) { ctx.fillStyle = '#c3cddd'; ctx.fillRect(x * C, y * C, C, kk * 1.2); }
+        } else {
+          ctx.fillStyle = '#c3cddd'; ctx.fillRect(x * C, y * C, C, C);
+          ctx.fillStyle = '#9aa6bd';
+          const o = (h % 2) * C * .5;
+          ctx.fillRect(x * C, y * C + C * .48, C, kk); ctx.fillRect(x * C + C * .25 + o * .5, y * C, kk, C * .48); ctx.fillRect(x * C + C * .7 - o * .4, y * C + C * .48, kk, C * .52);
+          if (h % 7 === 0) { ctx.fillRect(x * C + C * .2, y * C + C * .2, kk * 2, kk); ctx.fillRect(x * C + C * .2 + kk, y * C + C * .2 + kk, kk * 2, kk); }
+        }
       });
-      // paredes laterais e de baixo
-      const W1 = C * .2;
-      chao.forEach((_, k) => {
-        const [x, y] = k.split(',').map(Number);
-        ctx.fillStyle = '#4f535b';
-        if (!tem(x - 1, y)) ctx.fillRect(x * C - W1, y * C - W1, W1, C + W1 * 2);
-        if (!tem(x + 1, y)) ctx.fillRect((x + 1) * C, y * C - W1, W1, C + W1 * 2);
-        if (!tem(x, y + 1)) { ctx.fillRect(x * C - W1, (y + 1) * C, C + W1 * 2, W1); ctx.fillStyle = '#6a6e76'; ctx.fillRect(x * C - W1, (y + 1) * C, C + W1 * 2, 2); }
-      });
-      // paredes de cima com face (efeito 2.5D)
-      chao.forEach((_, k) => {
-        const [x, y] = k.split(',').map(Number);
-        if (tem(x, y - 1)) return;
-        const fy = y * C - C * .55;
-        const g = ctx.createLinearGradient(0, fy, 0, y * C); g.addColorStop(0, '#8b8e95'); g.addColorStop(1, '#5c6068');
-        ctx.fillStyle = g; ctx.fillRect(x * C - (tem(x - 1, y) ? 0 : W1), fy, C + (tem(x - 1, y) ? 0 : W1) + (tem(x + 1, y) ? 0 : W1), C * .55);
-        ctx.strokeStyle = 'rgba(40,43,49,.6)'; ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(x * C, fy + C * .27); ctx.lineTo((x + 1) * C, fy + C * .27);
-        const o = (x % 2) * C * .5; ctx.moveTo(x * C + C * .25 + o * .5, fy); ctx.lineTo(x * C + C * .25 + o * .5, fy + C * .27);
-        ctx.moveTo(x * C + C * .7 - o * .4, fy + C * .27); ctx.lineTo(x * C + C * .7 - o * .4, y * C);
-        ctx.stroke();
-        ctx.fillStyle = '#a5a8ae'; ctx.fillRect(x * C - (tem(x - 1, y) ? 0 : W1), fy - 3, C + (tem(x - 1, y) ? 0 : W1) + (tem(x + 1, y) ? 0 : W1), 3);
+      ctx.fillStyle = '#1b1a29';
+      parede.forEach(k => {
+        const [x, y] = k.split(',').map(Number), L = kk * 1.1;
+        if (!eParede(x - 1, y)) ctx.fillRect(x * C, y * C, L, C);
+        if (!eParede(x + 1, y)) ctx.fillRect((x + 1) * C - L, y * C, L, C);
+        if (!eParede(x, y - 1)) ctx.fillRect(x * C, y * C, C, L);
+        if (!eParede(x, y + 1)) ctx.fillRect(x * C, (y + 1) * C - L, C, L);
       });
 
-      // portas
+      // portas (na célula do corredor encostada à sala)
       d.arestas.forEach(e => {
         if (!e.conhecida || e.tipo === 'arco') return;
+        const aberta = e.tipo === 'trancada' ? e.aberta && d.salas[e.a].estado === 'explorada' && d.salas[e.b].estado === 'explorada'
+          : (e.tipo === 'porta' && d.salas[e.a].estado === 'explorada' && d.salas[e.b].estado === 'explorada');
         e.portas.forEach(p => {
           const hor = p.lado === 'n' || p.lado === 's';
-          const bx = p.lado === 'w' ? p.x * C : p.lado === 'e' ? (p.x + 1) * C : (p.x + .5) * C;
-          const by = p.lado === 'n' ? p.y * C : p.lado === 's' ? (p.y + 1) * C : (p.y + .5) * C;
-          ctx.save(); ctx.translate(bx, by); if (!hor) ctx.rotate(Math.PI / 2);
+          const cx = (p.x + .5) * C, cy = (p.y + .5) * C;
           if (e.tipo === 'secreta') {
-            ctx.setLineDash([4, 3]); ctx.strokeStyle = '#d8aa3c'; ctx.lineWidth = 2; ctx.strokeRect(-C * .5, -C * .16, C, C * .32); ctx.setLineDash([]);
-          } else {
-            if (IMG.door.complete) ctx.drawImage(IMG.door, -C * .55, -C * .2, C * 1.1, C * .4);
-            if (e.tipo === 'trancada' && !e.aberta) {
-              ctx.rotate(hor ? 0 : -Math.PI / 2);
-              const cad = imgObj('padlock');
-              if (cad.complete) ctx.drawImage(cad, -C * .42, -C * .52, C * .84, C * .84);
-            }
+            ctx.setLineDash([4, 3]); ctx.strokeStyle = '#d8aa3c'; ctx.lineWidth = 2;
+            ctx.strokeRect(p.x * C + 4, p.y * C + 4, C - 8, C - 8); ctx.setLineDash([]); return;
           }
-          ctx.restore();
+          if (hor) S.anim(ctx, 'portaH', aberta ? 3 : 0, 20, cx, (p.lado === 'n' ? p.y * C + C * .55 : (p.y + 1) * C + C * .05), kk * .8);
+          else S.anim(ctx, 'portaV', aberta ? 3 : 0, 14, cx, (p.y + 1) * C + C * .1, kk * .8);
+          if (e.tipo === 'trancada' && !e.aberta) {
+            const cad = imgObj('padlock'); if (cad.complete) ctx.drawImage(cad, cx - C * .3, cy - C * .55, C * .6, C * .6);
+          }
         });
       });
 
       // objetos nas salas exploradas
-      const fonte = `${C * .6}px Georgia, serif`;
+      const DECOR = {
+        cripta: [['velas', .8], ['pote', 1], ['pedras', 1], ['ralo', 1], ['velas', .8]],
+        mina: [['caixa', 1], ['barril', 1], ['saco', 1], ['madeira', 1], ['pedras', 1]],
+        ruinas: [['estante', 1], ['mesa', 1], ['mesaV', 1], ['armas', 1], ['madeira', 1]]
+      }[d.tipo];
+      this.tochas = [];
       d.salas.forEach(s => {
         if (s.estado !== 'explorada') return;
+        const usados = new Set(), c = Gen.centro(s);
+        usados.add(c.x + ',' + c.y); usados.add((c.x + 1) + ',' + c.y);
+        this.posMonstros(s, true).forEach(p => usados.add(Math.floor(p.x / C) + ',' + Math.floor(p.y / C)));
+        const livre = (x, y) => !usados.has(x + ',' + y);
         const cantos = [[s.x, s.y + s.h - 1], [s.x + s.w - 1, s.y + s.h - 1], [s.x + s.w - 1, s.y], [s.x, s.y]];
-        let k = 0; const prox = () => cantos[k++ % 4];
-        if (s.id === d.inicio && IMG.ladder.complete) { const [x, y] = [s.x, s.y]; ctx.drawImage(IMG.ladder, x * C + 2, y * C + 2, C - 4, C - 4); k = 0; cantos.push(cantos.shift()); }
-        if (s.itens.length && IMG.chest.complete) { const [x, y] = prox(); ctx.drawImage(IMG.chest, x * C + C * .16, y * C + C * .12, C * .68, C * .74); }
-        if (s.armadilha && IMG.spikes.complete) { const c = Gen.centro(s); ctx.globalAlpha = .9; ctx.drawImage(IMG.spikes, (c.x + (s.w > 3 ? 1 : 0)) * C + C * .2, (c.y - (s.h > 3 ? 1 : 0)) * C + C * .1, C * .6, C * .8); ctx.globalAlpha = 1; }
+        const prox = () => { const p = cantos.find(([x, y]) => livre(x, y)) || [s.x, s.y]; usados.add(p[0] + ',' + p[1]); return p; };
+        if (s.id === d.inicio) { const [x, y] = prox(); S.tile(ctx, 17, 1, x * C, y * C, C); }
+        if (s.itens.length) { const [x, y] = prox(); S.anim(ctx, 'bau', 0, 16, (x + .5) * C, (y + .9) * C, kk); }
+        if (s.armadilha) { const [x, y] = prox(); S.anim(ctx, 'espigoes', 5, 17, (x + .5) * C, (y + .95) * C, kk * .9); }
+        if (s.mec) { const [x, y] = prox(); S.anim(ctx, 'alavanca', s.mec.resolvido ? 3 : 0, 16, (x + .5) * C, (y + .9) * C, kk); }
         const marca = (icone, cor, apagado, obj) => { const [x, y] = prox(); ctx.imageSmoothingEnabled = true; CP.Fichas.marca(ctx, (x + .5) * C, (y + .5) * C, C * .9, icone, cor, apagado, obj ? imgObj(obj) : null); ctx.imageSmoothingEnabled = false; };
-        if (s.mec && IMG.trapdoor.complete) {
-          if (s.mec.resolvido) { const [x, y] = prox(); ctx.drawImage(IMG.trapdoor, x * C + 3, y * C + 3, C - 6, C - 6); }
-          else marca('engrenagem', '#e0b84e');
-        }
         if (s.restos) marca('ossos', '#e6dcc4', false, 'bone');
         if (s.pista !== undefined) marca('pergaminho', '#f0cf7a', false, 'parchment');
         else if (s.inscricao) marca('runa', '#9fc3e0', s.inscricao.lida);
+        // sangue onde caíram criaturas
+        this.posMonstros(s, true).forEach(p => { if (p.m.pv <= 0 && !p.m.pacificado && !p.m.errante) S.sangue(ctx, p.x, p.y, kk * .9); });
+        // decoração encostada à parede de cima
+        const h0 = hash(s.x * 7, s.y * 13), n = Math.min(s.w - 2, 1 + h0 % 3);
+        for (let i = 0; i < n; i++) {
+          const x = s.x + 1 + ((h0 >>> (i * 3)) + i * 2) % Math.max(1, s.w - 2), y = s.y;
+          if (!livre(x, y)) continue; usados.add(x + ',' + y);
+          const [g, esc2] = DECOR[(h0 >>> (i * 2)) % DECOR.length];
+          S.obj(ctx, g, (h0 >>> i) % 8, (x + .5) * C, (y + .92) * C, kk * esc2);
+        }
+        if (d.tipo === 'mina' && s.chefe) S.obj(ctx, 'grades', 0, (s.x + s.w - .5) * C, (s.y + 1) * C, kk);
+        // tocha na parede de cima
+        if (s.w >= 3) {
+          const tx = s.x + 1 + (hash(s.x, s.y) % Math.max(1, s.w - 2));
+          S.obj(ctx, 'tocha', 0, (tx + .5) * C, s.y * C - C * .05, kk);
+          this.tochas.push({ x: (tx + .5) * C, y: s.y * C - C * .55, f: hash(s.y, s.x) % 8 });
+        }
         ctx.fillStyle = 'rgba(236,230,216,.35)'; ctx.font = `${C * .34}px Georgia, serif`; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
         ctx.fillText(E.nomeSala(s), s.x * C + 3, (s.y + s.h) * C - 4);
       });
-      // tochas: uma por sala explorada, na parede de cima
-      this.tochas = d.salas.filter(s => s.estado === 'explorada' && s.w >= 3).map(s => ({ x: (s.x + 1 + (hash(s.x, s.y) % (s.w - 2 || 1)) + .5) * C, y: s.y * C - C * .2, f: hash(s.y, s.x) % 100 }));
       this.sujo = false;
     },
 
-    /* --- cada fotograma: luz, fichas, partículas --- */
+    // animações curtas das personagens (ataque, dor, morte)
+    animar(quem, anim) { this.anims[quem] = { anim, t0: performance.now() }; },
+    animDe(quem, t) {
+      const a = this.anims[quem]; if (!a) return null;
+      const dt = t - a.t0; if (dt > CP.Spr.duracao(a.anim)) { delete this.anims[quem]; return null; }
+      return { anim: a.anim, t: dt };
+    },
+    morrer(p) { this.mortes.push({ ...p, t0: performance.now() }); },
+
+    /* --- cada fotograma: luz, personagens, partículas --- */
     frame(t, dt) {
       if (!st || !st.exp || !this.w || $('#ecra-exp').hidden) return;
       if (this.sujo) this.construir();
-      const ctx = this.ctx, C = this.C, d = st.exp.d, esc = this.esc, mov = !reduzido();
-      // deslizar a câmara e o herói
+      const ctx = this.ctx, C = this.C, d = st.exp.d, esc = this.esc, mov = !reduzido(), S = CP.Spr, kk = C / 16;
       if (this.destino) {
         this.ox += (this.destino.ox - this.ox) * Math.min(1, dt * 6); this.oy += (this.destino.oy - this.oy) * Math.min(1, dt * 6);
         if (Math.abs(this.destino.ox - this.ox) < .5 && Math.abs(this.destino.oy - this.oy) < .5) this.destino = null;
       }
       const alvo = this.alvoHeroi();
-      if (!this.heroi) this.heroi = { ...alvo };
-      this.heroi.x += (alvo.x - this.heroi.x) * Math.min(1, dt * 8); this.heroi.y += (alvo.y - this.heroi.y) * Math.min(1, dt * 8);
+      if (!this.heroi) this.heroi = { ...alvo, dir: 'D', flip: false };
+      const vx = alvo.x - this.heroi.x, vy = alvo.y - this.heroi.y, anda = Math.hypot(vx, vy) > 3;
+      const passo = Math.min(1, dt * 4.5);
+      this.heroi.x += vx * passo; this.heroi.y += vy * passo;
+      if (anda) { if (Math.abs(vx) > Math.abs(vy)) { this.heroi.dir = 'S'; this.heroi.flip = vx < 0; } else { this.heroi.dir = vy < 0 ? 'U' : 'D'; if (Math.abs(vx) > 1) this.heroi.flip = vx < 0; } }
       const fl = mov ? Math.sin(t / 90) * .03 + Math.sin(t / 37) * .02 : 0;
 
       ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-      ctx.fillStyle = '#0e1115'; ctx.fillRect(0, 0, this.w, this.h);
+      ctx.fillStyle = '#0e0d16'; ctx.fillRect(0, 0, this.w, this.h);
       ctx.save(); ctx.translate(this.ox, this.oy); ctx.scale(esc, esc);
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(this.est, 0, 0);
 
-      // tochas
-      for (const tc of this.tochas) {
-        if (!IMG.fire.complete) break;
-        ctx.save(); ctx.translate(tc.x, tc.y);
-        if (mov && Math.floor((t + tc.f * 37) / 160) % 2) ctx.scale(-1, 1);
-        ctx.drawImage(IMG.fire, -C * .22, -C * .5, C * .44, C * .8); ctx.restore();
-      }
-      // criaturas
-      ctx.imageSmoothingEnabled = true;
+      // chamas das tochas
+      for (const tc of this.tochas) S.anim(ctx, 'fogo', mov ? Math.floor(t / 100 + tc.f) % 8 : 0, 16, tc.x, tc.y + C * .2, kk * .7);
+
+      // criaturas (vivas) e mortes a acontecer
+      const sAt = d.salas[st.exp.sala], h = this.heroi;
+      const alvoCombate = (st.exp.combate || st.exp.confronto);
       d.salas.forEach(s => {
         if (s.estado !== 'explorada') return;
-        for (const { m, x, y } of this.posMonstros(s)) CP.Fichas.monstro(ctx, m, x, y, C * (m.chefe ? .5 : .42), t, mov, RET_MONSTRO[m.tipo] ? imgRet(RET_MONSTRO[m.tipo], m.acordado || m.chefe ? 'angry' : 'neutral') : null);
+        for (const { m, x, y, key } of this.posMonstros(s)) {
+          const k = kk * (S.ESCALA[m.tipo] || 1);
+          if (S.temSprite(m.tipo)) {
+            const ativo = m.acordado || m.chefe;
+            const a = this.animDe(key, t);
+            let dir = 'D', flip = false;
+            if (s === sAt && ativo) { const dx = h.x - x, dy = h.y - y; flip = dx < 0; dir = Math.abs(dx) > Math.abs(dy) ? 'S' : dy < 0 ? 'U' : 'D'; }
+            else flip = hash(x | 0, y | 0) % 2 === 1;
+            if (m.chefe) { ctx.fillStyle = 'rgba(240,200,74,.18)'; ctx.beginPath(); ctx.ellipse(x, y, C * .55, C * .2, 0, 0, 7); ctx.fill(); }
+            S.personagem(ctx, S.MONSTRO[m.tipo], a ? a.anim : 'Idle', dir, a ? a.t : (ativo && mov ? t + x * 7 : 0), x, y, k, flip, !!a, m.tipo === 'guardiao' ? .8 : (ativo ? 1 : .85));
+            if (!ativo) { ctx.fillStyle = '#dfe8f2'; ctx.font = `700 ${C * .32}px Alegreya Sans, sans-serif`; ctx.textAlign = 'center'; ctx.fillText('z', x + C * .38, y - C * .9 - (mov ? (t / 400) % 1 * 5 : 0)); }
+          } else {
+            ctx.imageSmoothingEnabled = true; CP.Fichas.monstro(ctx, m, x, y - C * .35, C * (m.chefe ? .5 : .42), t, mov); ctx.imageSmoothingEnabled = false;
+          }
+          if ((m.acordado || m.chefe) && s === sAt && alvoCombate) {   // vida por cima
+            const w = Math.min(C * 1.1, m.pvMax * C * .16), y0 = y - C * (S.temSprite(m.tipo) ? 1.15 * (S.ESCALA[m.tipo] || 1) : 1.05);
+            ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(x - w / 2 - 1, y0 - 1, w + 2, 5);
+            ctx.fillStyle = '#e0503a'; ctx.fillRect(x - w / 2, y0, w * m.pv / m.pvMax, 3);
+          }
+          if (m.chefe) { ctx.save(); ctx.translate(x, y - C * (S.temSprite(m.tipo) ? 1.45 : 1.2)); ctx.scale(C / 34, C / 34); CP.Fichas.ICONES.coroa(ctx, '#f0c84a'); ctx.restore(); }
+        }
       });
+      this.mortes = this.mortes.filter(o => t - o.t0 < 1100);
+      for (const o of this.mortes) S.personagem(ctx, o.chave, 'Death', 'D', t - o.t0, o.x, o.y, kk * o.esc, false, true, 1 - Math.max(0, (t - o.t0 - 800) / 300));
+
       // herói
-      const h = this.heroi;
-      CP.Fichas.heroi(ctx, st.hero.classe, COR[st.hero.classe], h.x, h.y, C * .46, t, mov, imgRet(RET_CLASSE[st.hero.classe], exprAtual()));
+      const ah = this.animDe('heroi', t);
+      let dirH = h.dir, flipH = h.flip;
+      if (!anda && alvoCombate) {
+        const mp = this.posMonstros(sAt)[0];
+        if (mp) { const dx = mp.x - h.x, dy = mp.y - h.y; if (Math.abs(dx) > Math.abs(dy)) { dirH = 'S'; flipH = dx < 0; } else { dirH = dy < 0 ? 'U' : 'D'; flipH = dx < 0; } }
+      }
+      S.personagem(ctx, S.CLASSE[st.hero.classe], ah ? ah.anim : (anda ? 'Walk' : 'Idle'), dirH, ah ? ah.t : t, h.x, h.y, kk, flipH, !!ah);
       ctx.restore();
 
       // luz: escuridão com buracos (herói e tochas)
@@ -646,6 +771,21 @@
       }
       ctx.globalAlpha = 1;
 
+      // miniaturas animadas: cabeçalho e barra de combate
+      const mini = (cv, chave, anim, tt, flip, umaVez) => {
+        if (!cv) return; const c = cv.getContext('2d'); c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height);
+        c.imageSmoothingEnabled = false; S.personagem(c, chave, anim, flip ? 'S' : 'D', tt, cv.width / 2, cv.height * .86, cv.width / 22, false, umaVez);
+      };
+      const ahH = this.animDe('heroi', t);
+      const animH = ahH ? ahH.anim : (alvoCombate ? 'Idle' : 'Idle');
+      mini(document.getElementById('st-token'), S.CLASSE[st.hero.classe], animH, ahH ? ahH.t : t, false, !!ahH);
+      mini(document.getElementById('duelo-h'), S.CLASSE[st.hero.classe], animH, ahH ? ahH.t : t, false, !!ahH);
+      const mI = inimigoAtual(), cvM = document.getElementById('duelo-m');
+      if (mI && cvM && S.temSprite(mI.tipo)) {
+        const pk = this.posMonstros(sAt, true).find(p => p.m === mI) || {}, am = pk.key && this.animDe(pk.key, t);
+        mini(cvM, S.MONSTRO[mI.tipo], am ? am.anim : 'Idle', am ? am.t : t, false, !!am);
+      }
+
       // réguas de coordenadas
       const Cs = C * esc;
       if (Cs >= 14) {
@@ -668,9 +808,13 @@
       if (st.exp && st.exp.combate) h += `<p class="p2">Em combate, usar um objeto gasta a tua vez.</p>`;
     } else if (tipo === 'registo') {
       const x = st.exp, info = E.info(st);
-      h = `<h2>${esc(info.titulo)}</h2><p><b>Objetivo:</b> ${esc(info.objetivo)}${x.objetivo ? ' (cumprido)' : ''}</p><h3>Pistas</h3>` +
-        (x.pistas.length ? x.pistas.map(p => `<p class="eco">${esc(p)}</p>`).join('') : `<p class="vazio">Ainda não encontraste pistas.</p>`) +
-        `<h3>Registo</h3><div class="narr" style="padding:0">${x.registo.slice(-80).map(linhaEvento).join('')}</div>`;
+      h = `<h2>${esc(info.titulo)}</h2>
+        <div class="livro"><canvas id="livro-cv" width="272" height="272" aria-hidden="true"></canvas>
+          <div class="pags"><div class="pag e"><b>Objetivo</b><p>${esc(info.objetivo)}</p><p><i>${x.objetivo ? 'Cumprido.' : 'Por cumprir.'}</i></p>
+            ${x.pistas.slice(0, 1).map(p => `<b>Pista</b><p>${esc(p)}</p>`).join('')}</div>
+          <div class="pag d">${x.pistas.length > 1 ? '<b>Pistas</b>' + x.pistas.slice(1).map(p => `<p>${esc(p)}</p>`).join('') : `<p><i>${x.pistas.length ? 'Ainda há mais por descobrir…' : 'As páginas ainda estão em branco. Explora para encontrares pistas.'}</i></p>`}</div></div>
+        </div>
+        <h3>Registo</h3><div class="narr" style="padding:0">${x.registo.slice(-80).map(linhaEvento).join('')}</div>`;
     } else if (tipo === 'regras') {
       const cor = st ? COR[st.hero.classe] : '#7a6a5a';
       h = `<h2>Regras</h2><div class="regras">
@@ -707,6 +851,7 @@
     }
     $('#folha-in').innerHTML = h;
     $('#folha').hidden = false;
+    if (tipo === 'registo') { Livro.abrir(); Som.tocar('reveal'); }
   }
   const formImportar = () => `<textarea id="tx-imp" placeholder="Cola aqui o código da campanha"></textarea>
     <div class="loja"><input type="file" id="fi-imp" accept=".json,application/json"><button class="bt" data-importar>Importar</button></div><p id="imp-msg" class="p2"></p>`;
@@ -762,8 +907,10 @@
   /* ================= Arranque ================= */
   Mapa.init();
   st = CP.Save.carregar();
-  render();
-  if (st && st.ecra === 'expedicao') requestAnimationFrame(() => { Mapa.ajustar(); Mapa.sujo = true; Mapa.centrar(true, true); });
+  CP.Spr.carregar().then(() => {
+    render();
+    if (st && st.ecra === 'expedicao') requestAnimationFrame(() => { Mapa.ajustar(); Mapa.sujo = true; Mapa.centrar(true, true); });
+  });
   // o som ambiente só pode começar depois de um toque
   document.addEventListener('pointerdown', () => { CP.Musica.desbloquear(); }, { capture: true });
   document.addEventListener('keydown', () => { CP.Musica.desbloquear(); }, { capture: true });
