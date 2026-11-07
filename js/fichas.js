@@ -127,11 +127,17 @@
     mi.addColorStop(0, o.miolo[0]); mi.addColorStop(1, o.miolo[1]);
     c.fillStyle = mi; c.beginPath(); c.arc(0, 0, ri, 0, 7); c.fill();
     c.strokeStyle = 'rgba(0,0,0,.5)'; c.lineWidth = Math.max(1, r * .05); c.stroke();
-    // ícone
-    c.save(); c.scale(ri / 12.5, ri / 12.5);
-    c.shadowColor = 'rgba(0,0,0,.55)'; c.shadowOffsetY = 1;
-    ICONES[o.icone](c, o.cor, o.miolo[1]);
-    c.restore();
+    // retrato (se houver) ou ícone
+    if (o.img && o.img.complete && o.img.naturalWidth) {
+      c.save(); c.beginPath(); c.arc(0, 0, ri * .97, 0, 7); c.clip();
+      c.imageSmoothingEnabled = false; c.drawImage(o.img, -ri * 1.08, -ri * 1.02, ri * 2.16, ri * 2.16);
+      c.restore();
+    } else {
+      c.save(); c.scale(ri / 12.5, ri / 12.5);
+      c.shadowColor = 'rgba(0,0,0,.55)'; c.shadowOffsetY = 1;
+      ICONES[o.icone](c, o.cor, o.miolo[1]);
+      c.restore();
+    }
     // brilho
     c.fillStyle = 'rgba(255,255,255,.16)'; c.beginPath(); c.ellipse(-r * .3, -r * .5, r * .42, r * .2, -.5, 0, 7); c.fill();
     c.restore();
@@ -152,13 +158,13 @@
 
   CP.Fichas = {
     ICONES,
-    monstro(c, m, x, y, r, t, animado) {
+    monstro(c, m, x, y, r, t, animado, img) {
       const p = paleta(m);
       const aro = m.chefe ? ['#fff0b0', '#d8aa3c', '#7a5714'] : m.morto ? ['#d9dde3', '#8a919c', '#3c414a'] : ['#c8a27a', '#7a5638', '#3a2516'];
       const respira = animado && m.acordado ? Math.sin(t / 260 + x) * r * .04 : 0;
       c.save();
       if (!m.acordado && !m.chefe) c.globalAlpha = .82;
-      medalhao(c, x, y + respira, r, { aro, miolo: [p.a, p.b], icone: ICONE_MONSTRO[m.tipo] || 'caveira', cor: p.i });
+      medalhao(c, x, y + respira, r, { aro, miolo: [p.a, p.b], icone: ICONE_MONSTRO[m.tipo] || 'caveira', cor: p.i, img });
       if (m.acordado || m.chefe) vida(c, x, y + respira, r, m.pv, m.pvMax);
       if (m.chefe) {
         c.save(); c.translate(x, y - r * 1.05 + respira); c.scale(r / 14, r / 14);
@@ -172,24 +178,31 @@
       }
       c.restore();
     },
-    heroi(c, classe, cor, x, y, r, t, animado) {
+    heroi(c, classe, cor, x, y, r, t, animado, img) {
       // círculo de seleção no chão
       const p = animado ? (Math.sin(t / 380) + 1) / 2 : .5;
       c.save(); c.strokeStyle = `rgba(243,228,189,${.35 + p * .35})`; c.lineWidth = r * .1;
       c.beginPath(); c.ellipse(x, y + r * .95, r * (1.15 + p * .12), r * (.42 + p * .05), 0, 0, 7); c.stroke(); c.restore();
-      medalhao(c, x, y, r, { aro: ['#fff6dc', '#e2c98e', '#8a6a34'], miolo: [cor, shade(cor, -.55)], icone: ICONE_CLASSE[classe], cor: '#fff8e8' });
+      medalhao(c, x, y, r, { aro: ['#fff6dc', '#e2c98e', '#8a6a34'], miolo: [cor, shade(cor, -.55)], icone: ICONE_CLASSE[classe], cor: '#fff8e8', img });
     },
     // marcador de objeto: placa em losango
-    marca(c, x, y, s, icone, cor, apagado) {
+    marca(c, x, y, s, icone, cor, apagado, img) {
       c.save(); c.translate(x, y); c.globalAlpha = apagado ? .55 : 1;
       c.fillStyle = 'rgba(0,0,0,.4)'; c.beginPath(); c.ellipse(0, s * .62, s * .55, s * .18, 0, 0, 7); c.fill();
       c.rotate(Math.PI / 4);
       const g = c.createLinearGradient(-s * .4, -s * .4, s * .4, s * .4); g.addColorStop(0, '#5a4a36'); g.addColorStop(1, '#2a2119');
       c.fillStyle = g; c.fillRect(-s * .38, -s * .38, s * .76, s * .76);
       c.lineWidth = s * .06; c.strokeStyle = cor; c.strokeRect(-s * .38, -s * .38, s * .76, s * .76);
-      c.rotate(-Math.PI / 4); c.scale(s / 32, s / 32);
-      ICONES[icone](c, cor, '#2a2119');
+      c.rotate(-Math.PI / 4);
+      if (img && img.complete && img.naturalWidth) { c.imageSmoothingEnabled = false; c.drawImage(img, -s * .42, -s * .42, s * .84, s * .84); }
+      else { c.scale(s / 32, s / 32); ICONES[icone](c, cor, '#2a2119'); }
       c.restore();
+    },
+    imagemMonstro(m, px) {
+      const k = 2, cv = document.createElement('canvas'); cv.width = cv.height = px * k;
+      const c = cv.getContext('2d'); c.scale(k, k); const p = paleta(m);
+      medalhao(c, px / 2, px / 2 - px * .03, px * .44, { aro: m.chefe ? ['#fff0b0', '#d8aa3c', '#7a5714'] : ['#c8a27a', '#7a5638', '#3a2516'], miolo: [p.a, p.b], icone: ICONE_MONSTRO[m.tipo] || 'caveira', cor: p.i });
+      return cv.toDataURL();
     },
     // imagem da ficha do herói para usar no HTML (cabeçalho, cartões)
     imagemHeroi(classe, cor, px) {

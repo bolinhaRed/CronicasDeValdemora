@@ -39,11 +39,44 @@
   const lados = v => E.ladosDe(v);
   const chipsDados = h => Object.keys(CP.ATRIB).map(k =>
     `<span class="chip" title="${CP.ATRIB[k]}">${dadoSVG(lados(h.attrs[k]), null, COR[h.classe])}${ABREV[k]} <b>d${lados(h.attrs[k])}</b></span>`).join('');
-  const IMG_TOKEN = {};
-  const tokenHTML = (classe, extra) => {
-    const src = IMG_TOKEN[classe] || (IMG_TOKEN[classe] = CP.Fichas.imagemHeroi(classe, COR[classe], 64));
-    return `<div class="token tk" ${extra || ''}><img src="${src}" alt="${CP.CLASSES[classe].nome}"></div>`;
+  // retratos e ícones (assets embutidos em js/retratos.js)
+  const RET_CLASSE = { guerreiro: 'warrior', ladrao: 'rogue', explorador: 'ranger', mistico: 'mage' };
+  const RET_MONSTRO = { esqueleto: 'skeleton', goblin: 'goblin', gorm: 'goblin', lobo: 'wolf' };
+  const RET_CLIENTE = { sinos: 'bard', reliquia: 'cleric', mineiros: 'knight' };
+  const ICONE_ITEM = {
+    espada: 'sword', espadalonga: 'sword', punhal: 'knife', punhalfino: 'knife', machado: 'axe', cajado: 'rod', cajadorunico: 'rod',
+    manto: 'shield', gibao: 'shield', cota: 'shield', escudo: 'shield', pocao: 'potion', gazua: 'key', oleo: 'lantern',
+    broche: 'purpleHeart', calice: 'crown', anel: 'ruby', idolo: 'diamond',
+    badalo: 'horn', diario: 'book', pepita: 'money', recibo: 'parchment', pedra: 'wall'
   };
+  const icone = id => CP.OBJ[ICONE_ITEM[id]] ? `<img class="px ic" src="${CP.OBJ[ICONE_ITEM[id]]}" alt="">` : '';
+  const retrato = (quem, expr) => (CP.RET[quem] && (CP.RET[quem][expr] || CP.RET[quem].neutral)) || '';
+  // imagens para o canvas
+  const IMG_RET = {};
+  const imgRet = (quem, expr) => {
+    const k = quem + '-' + expr; if (IMG_RET[k]) return IMG_RET[k];
+    const i = new Image(); i.onload = () => { Mapa.sujo = true; }; i.src = retrato(quem, expr); return (IMG_RET[k] = i);
+  };
+  const IMG_OBJ = {};
+  const imgObj = n => { if (IMG_OBJ[n]) return IMG_OBJ[n]; const i = new Image(); i.onload = () => { Mapa.sujo = true; }; i.src = CP.OBJ[n]; return (IMG_OBJ[n] = i); };
+
+  // expressão do herói: uma base (combate, pouca vida) e reações curtas aos eventos
+  let exprTemp = null, exprAte = 0;
+  function exprBase() {
+    if (!st) return 'neutral';
+    if (st.exp && (st.exp.combate || st.exp.confronto)) return 'angry';
+    if (st.hero.pv / st.hero.pvMax <= .3) return 'sad';
+    return 'neutral';
+  }
+  const exprAtual = () => (exprTemp && performance.now() < exprAte ? exprTemp : exprBase());
+  function reagir(expr) {
+    exprTemp = expr; exprAte = performance.now() + 1300;
+    const im = document.querySelector('#st-token img'); if (im) im.src = retrato(RET_CLASSE[st.hero.classe], expr);
+    clearTimeout(reagir.t);
+    reagir.t = setTimeout(() => { const i = document.querySelector('#st-token img'); if (i && st) i.src = retrato(RET_CLASSE[st.hero.classe], exprBase()); }, 1350);
+  }
+  const tokenHTML = (classe, extra, expr) =>
+    `<div class="token rt" style="--cor:${COR[classe]}" ${extra || ''}><img class="px" src="${retrato(RET_CLASSE[classe], expr || 'neutral')}" alt="${CP.CLASSES[classe].nome}"></div>`;
 
   /* ================= Fluxo principal ================= */
   async function executar(a) {
@@ -104,7 +137,7 @@
     $('#classes').innerHTML = Object.entries(CP.CLASSES).map(([id, c]) => {
       const h = { classe: id, attrs: c.attrs };
       return `<button class="classe" data-classe="${id}" aria-pressed="${id === classeEscolhida}">
-        ${tokenHTML(id)}<b>${c.nome} <small style="font:14px var(--fonte);color:var(--texto-2)">${c.pv} PV</small></b>
+        ${tokenHTML(id, '', id === classeEscolhida ? 'happy' : 'neutral')}<b>${c.nome} <small style="font:14px var(--fonte);color:var(--texto-2)">${c.pv} PV</small></b>
         <span>${c.desc}</span><div class="chips">${chipsDados(h)}</div></button>`;
     }).join('');
   }
@@ -127,7 +160,7 @@
     html += ultimos.filter(e => e.t !== 'd').map(e => `<p class="aviso">${esc(e.s)}</p>`).join('');
     ultimos = [];
 
-    html += `<div class="cartao">${tokenHTML(h.classe)}<div class="nome">${esc(h.nome)}</div>
+    html += `<div class="cartao">${tokenHTML(h.classe, '', h.niveisPend ? 'happy' : exprBase())}<div class="nome">${esc(h.nome)}</div>
       <div class="ficha"><span>${c.nome} de nível <b>${h.nivel}</b></span><span>Vida <b>${h.pv}/${h.pvMax}</b></span><span>Ouro <b>${h.ouro}</b></span><span>XP <b>${h.xp}/${E.xpProx(h.nivel)}</b></span></div>
       <div class="chips">${chipsDados(h)}</div>
       <div class="ficha" style="grid-column:1/-1"><span>${arma.nome} <b>dano ${arma.dano}${arma.atk ? ', +' + arma.atk : ''}</b></span>
@@ -140,7 +173,7 @@
     html += `<h3>Missões</h3><div class="missoes">`;
     for (const m of M.missoes) {
       const tpl = E.tplDe(m), emCurso = m.estado === 'em_curso';
-      html += `<div class="missao ${emCurso ? 'curso' : ''}" style="--tile:url(${CP.ART[TILE[tpl.tipo]]})"><h4>${esc(m.titulo)}</h4>
+      html += `<div class="missao ${emCurso ? 'curso' : ''}" style="--tile:url(${CP.ART[TILE[tpl.tipo]]})"><img class="px tipo" src="${retrato(RET_CLIENTE[tpl.id], emCurso ? 'sad' : 'neutral')}" alt=""><h4>${esc(m.titulo)}</h4>
         <p class="meta">${tpl.cliente} · ${CP.LOCAIS[tpl.local].nome} · ${tpl.recompensa} moedas${emCurso ? ' · em curso' : ''}</p>
         <p>${tpl.objetivo}</p>
         <div class="linha"><button class="bt bt-p" data-partir="${m.id}">${emCurso ? 'Continuar a expedição' : 'Partir'}</button>
@@ -155,16 +188,16 @@
         E.ecosAldeia(st, id).map(t => `<p class="eco">${esc(t)}</p>`).join('');
     }
 
-    html += `<h3>Estalagem e mercado</h3><div class="loja">`;
+    html += `<h3>Estalagem e mercado</h3><div class="npc"><img class="px" src="${retrato('merchant', M.rep.corvamonte >= 2 ? 'happy' : 'neutral')}" alt=""><p>${M.rep.corvamonte >= 2 ? '«Para ti, amigo, há desconto.»' : '«Olha bem antes de comprares, viajante.»'}</p></div><div class="loja">`;
     html += `<button class="bt" data-descansar ${h.pv >= h.pvMax || h.ouro < 2 ? 'disabled' : ''}><span>Dormir na estalagem</span><small>Recuperas a vida toda</small><span class="p">2 moedas</span></button>`;
     for (const id of E.stockLoja(st)) {
       const it = CP.ITENS[id], p = E.precoLoja(st, id);
       const tem = h.arma === id || h.armadura === id || h.escudo === id;
       const cheio = ['consumivel', 'ferramenta'].includes(it.tipo) && h.mochila.length >= CP.MOCHILA;
       const det = it.tipo === 'arma' ? `Dano ${it.dano}${it.atk ? ', +' + it.atk + ' ao dado' : ''}, usa ${CP.ATRIB[it.attr]}` : it.def ? `Defesa +${it.def}` : (it.desc || '');
-      html += `<button class="bt" data-comprar="${id}" ${tem || cheio || h.ouro < p ? 'disabled' : ''}><span>${it.nome}</span><small>${det}${tem ? ' · já tens' : ''}</small><span class="p">${p} moedas</span></button>`;
+      html += `<button class="bt" data-comprar="${id}" ${tem || cheio || h.ouro < p ? 'disabled' : ''}><span>${icone(id)}${it.nome}</span><small>${det}${tem ? ' · já tens' : ''}</small><span class="p">${p} moedas</span></button>`;
     }
-    h.mochila.forEach((id, i) => { const it = CP.ITENS[id]; if (it.valor) html += `<button class="bt" data-vender="${i}"><span>Vender ${it.nome}</span><small>Tesouro</small><span class="p">+${it.valor} moedas</span></button>`; });
+    h.mochila.forEach((id, i) => { const it = CP.ITENS[id]; if (it.valor) html += `<button class="bt" data-vender="${i}"><span>${icone(id)}Vender ${it.nome}</span><small>Tesouro</small><span class="p">+${it.valor} moedas</span></button>`; });
     html += `</div>`;
 
     html += `<h3>Mochila</h3>` + slots(h) + listaMochila(false);
@@ -174,7 +207,7 @@
     $('#aldeia').innerHTML = html;
   }
 
-  const slots = h => `<div class="slots">${[...Array(CP.MOCHILA)].map((_, i) => `<i class="${i < h.mochila.length ? 'c' : ''}"></i>`).join('')}</div>`;
+  const slots = h => `<div class="slots">${[...Array(CP.MOCHILA)].map((_, i) => i < h.mochila.length ? `<i class="c" title="${CP.ITENS[h.mochila[i]].nome}">${icone(h.mochila[i])}</i>` : '<i></i>').join('')}</div>`;
   function listaMochila(naExp) {
     const h = st.hero;
     if (!h.mochila.length) return `<p class="vazio">Mochila vazia.</p>`;
@@ -182,14 +215,15 @@
       const it = CP.ITENS[id];
       const usar = id === 'pocao' && h.pv < h.pvMax ? `<button class="bt" data-usar="${id}">Usar</button>` : '';
       const largar = naExp ? `<button class="bt" data-largar="${i}">Largar</button>` : (it.tipo === 'missao' ? '' : `<button class="bt" data-largar="${i}">Deitar fora</button>`);
-      return `<div class="item"><div>${it.nome}<small>${it.desc || (it.valor ? 'Vale ' + it.valor + ' moedas.' : '')}</small></div><div class="bts">${usar}${largar}</div></div>`;
+      return `<div class="item">${icone(id)}<div class="it-t">${it.nome}<small>${it.desc || (it.valor ? 'Vale ' + it.valor + ' moedas.' : '')}</small></div><div class="bts">${usar}${largar}</div></div>`;
     }).join('');
   }
 
   /* ================= Expedição ================= */
   function renderEstado(pvAntes) {
     const h = st.hero, x = st.exp; if (!x) return;
-    $('#st-token').outerHTML = tokenHTML(h.classe, 'id="st-token"');
+    $('#st-token').outerHTML = tokenHTML(h.classe, 'id="st-token"', exprAtual());
+    renderDuelo();
     $('#st-nome').textContent = h.nome;
     $('#st-ouro').textContent = h.ouro;
     const pct = 100 * h.pv / h.pvMax;
@@ -228,11 +262,31 @@
     Mapa.sujo = true;
   }
 
+  /* ================= Barra de combate (retratos frente a frente) ================= */
+  const IMG_MED = {};
+  function renderDuelo(exprInimigo) {
+    const el = $('#duelo'); if (!el) return;
+    const x = st && st.exp;
+    const s = x && x.d.salas[x.sala];
+    const m = s && (x.combate || x.confronto) ? (s.monstros.find(o => o.pv > 0 && (o.acordado || o.chefe)) || s.monstros.find(o => o.pv > 0)) : null;
+    if (!m) { el.hidden = true; return; }
+    const quem = RET_MONSTRO[m.tipo];
+    const img = quem ? retrato(quem, m.pv <= 1 ? 'hurt' : (exprInimigo || 'angry'))
+      : (IMG_MED[m.tipo + m.chefe] || (IMG_MED[m.tipo + m.chefe] = CP.Fichas.imagemMonstro(m, 64)));
+    el.hidden = false;
+    el.innerHTML = `<div class="d-l"><img class="px" src="${retrato(RET_CLASSE[st.hero.classe], exprAtual())}" alt=""></div>
+      <div class="d-m"><b>${esc(m.nome)}</b><div class="d-pv">${[...Array(m.pvMax)].map((_, i) => `<i class="${i < m.pv ? 'on' : ''}"></i>`).join('')}</div>
+      <small>${x.confronto ? 'Ainda não atacou' : 'Em combate'}${m.morto ? ' · morto-vivo' : ''}</small></div>
+      <div class="d-r ${m.chefe ? 'chefe' : ''}"><img class="${quem ? 'px' : ''}" src="${img}" alt=""></div>`;
+    if (exprInimigo) setTimeout(() => renderDuelo(), 700);
+  }
+
   /* ================= Resumo ================= */
   function renderResumo() {
     const r = st.resumo;
     const tit = { sucesso: 'Missão cumprida', retirada: 'Retirada', derrota: 'Derrota' }[r.tipo];
-    $('#resumo').innerHTML = `<div class="resumo-ban ${r.tipo}"><h2>${tit}</h2><p class="p2">${esc(r.titulo)}</p></div>` +
+    const ex = { sucesso: 'happy', retirada: 'neutral', derrota: 'hurt' }[r.tipo];
+    $('#resumo').innerHTML = `<div class="resumo-ban ${r.tipo}"><img class="px ret-g" src="${retrato(RET_CLASSE[st.hero.classe], ex)}" alt=""><h2>${tit}</h2><p class="p2">${esc(r.titulo)}</p></div>` +
       r.linhas.map((l, i) => `<p class="${i === 0 && r.tipo === 'sucesso' ? 'eco' : ''}">${esc(l)}</p>`).join('') +
       `<div class="ficha"><span>Ouro ganho <b>${r.ouro}</b></span><span>Experiência ganha <b>${r.xp}</b></span></div>
        <button class="bt bt-p" data-voltar>Voltar à aldeia</button>`;
@@ -268,8 +322,12 @@
   }
   function faixa(texto, mau) { const f = document.createElement('div'); f.className = 'faixa' + (mau ? ' mau' : ''); f.textContent = texto; $('#fx').appendChild(f); setTimeout(() => f.remove(), 1850); }
 
+  const REACAO = { hurt: 'hurt', trap: 'surprised', reveal: 'surprised', boss: 'surprised', growl: 'angry', miss: 'angry', omen: 'surprised',
+    coin: 'happy', pick: 'happy', kill: 'happy', win: 'happy', peace: 'happy', heal: 'happy', block: 'happy', door: 'neutral', lose: 'sad' };
   function efeito(e) {
     Som.tocar(e.fx);
+    if (st && st.exp && REACAO[e.fx]) reagir(REACAO[e.fx]);
+    if (e.fx === 'hit') renderDuelo('hurt');
     if (reduzido() && ['hurt', 'trap'].includes(e.fx)) { /* sem tremer */ }
     const H = Mapa.ecraHeroi(), Mo = Mapa.ecraMonstro();
     const wH = Mapa.mundoHeroi(), wM = Mapa.mundoMonstro();
@@ -480,8 +538,8 @@
             if (IMG.door.complete) ctx.drawImage(IMG.door, -C * .55, -C * .2, C * 1.1, C * .4);
             if (e.tipo === 'trancada' && !e.aberta) {
               ctx.rotate(hor ? 0 : -Math.PI / 2);
-              ctx.fillStyle = '#d8aa3c'; ctx.strokeStyle = '#3a2a10'; ctx.lineWidth = 1.5;
-              ctx.beginPath(); ctx.arc(0, -C * .1, C * .1, Math.PI, 0); ctx.stroke(); ctx.fillRect(-C * .13, -C * .1, C * .26, C * .2); ctx.strokeRect(-C * .13, -C * .1, C * .26, C * .2);
+              const cad = imgObj('padlock');
+              if (cad.complete) ctx.drawImage(cad, -C * .42, -C * .52, C * .84, C * .84);
             }
           }
           ctx.restore();
@@ -497,13 +555,13 @@
         if (s.id === d.inicio && IMG.ladder.complete) { const [x, y] = [s.x, s.y]; ctx.drawImage(IMG.ladder, x * C + 2, y * C + 2, C - 4, C - 4); k = 0; cantos.push(cantos.shift()); }
         if (s.itens.length && IMG.chest.complete) { const [x, y] = prox(); ctx.drawImage(IMG.chest, x * C + C * .16, y * C + C * .12, C * .68, C * .74); }
         if (s.armadilha && IMG.spikes.complete) { const c = Gen.centro(s); ctx.globalAlpha = .9; ctx.drawImage(IMG.spikes, (c.x + (s.w > 3 ? 1 : 0)) * C + C * .2, (c.y - (s.h > 3 ? 1 : 0)) * C + C * .1, C * .6, C * .8); ctx.globalAlpha = 1; }
-        const marca = (icone, cor, apagado) => { const [x, y] = prox(); ctx.imageSmoothingEnabled = true; CP.Fichas.marca(ctx, (x + .5) * C, (y + .5) * C, C * .9, icone, cor, apagado); ctx.imageSmoothingEnabled = false; };
+        const marca = (icone, cor, apagado, obj) => { const [x, y] = prox(); ctx.imageSmoothingEnabled = true; CP.Fichas.marca(ctx, (x + .5) * C, (y + .5) * C, C * .9, icone, cor, apagado, obj ? imgObj(obj) : null); ctx.imageSmoothingEnabled = false; };
         if (s.mec && IMG.trapdoor.complete) {
           if (s.mec.resolvido) { const [x, y] = prox(); ctx.drawImage(IMG.trapdoor, x * C + 3, y * C + 3, C - 6, C - 6); }
           else marca('engrenagem', '#e0b84e');
         }
-        if (s.restos) marca('ossos', '#e6dcc4');
-        if (s.pista !== undefined) marca('pergaminho', '#f0cf7a');
+        if (s.restos) marca('ossos', '#e6dcc4', false, 'bone');
+        if (s.pista !== undefined) marca('pergaminho', '#f0cf7a', false, 'parchment');
         else if (s.inscricao) marca('runa', '#9fc3e0', s.inscricao.lida);
         ctx.fillStyle = 'rgba(236,230,216,.35)'; ctx.font = `${C * .34}px Georgia, serif`; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
         ctx.fillText(E.nomeSala(s), s.x * C + 3, (s.y + s.h) * C - 4);
@@ -545,11 +603,11 @@
       ctx.imageSmoothingEnabled = true;
       d.salas.forEach(s => {
         if (s.estado !== 'explorada') return;
-        for (const { m, x, y } of this.posMonstros(s)) CP.Fichas.monstro(ctx, m, x, y, C * (m.chefe ? .5 : .42), t, mov);
+        for (const { m, x, y } of this.posMonstros(s)) CP.Fichas.monstro(ctx, m, x, y, C * (m.chefe ? .5 : .42), t, mov, RET_MONSTRO[m.tipo] ? imgRet(RET_MONSTRO[m.tipo], m.acordado || m.chefe ? 'angry' : 'neutral') : null);
       });
       // herói
       const h = this.heroi;
-      CP.Fichas.heroi(ctx, st.hero.classe, COR[st.hero.classe], h.x, h.y, C * .46, t, mov);
+      CP.Fichas.heroi(ctx, st.hero.classe, COR[st.hero.classe], h.x, h.y, C * .46, t, mov, imgRet(RET_CLASSE[st.hero.classe], exprAtual()));
       ctx.restore();
 
       // luz: escuridão com buracos (herói e tochas)
