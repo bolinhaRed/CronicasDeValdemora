@@ -24,7 +24,32 @@ for (const tpl of CP.MISSOES) tpl.variantes.forEach((v, vi) => {
 console.log(`Masmorras geradas e validadas: ${n} (média ${(salasTot / n).toFixed(1)} salas)`);
 
 // 3) Jogador automático: completa expedições do princípio ao fim
+// estratégia simples de combate: melhor dado no ataque, dados mínimos que defendem, habilidade se servir
+function estrategia(st) {
+  const c = st.exp.combate, h = st.hero, dados = c.dados.map((d, i) => ({ ...d, i })).filter(d => !d.perdido);
+  const w = CP.ITENS[h.arma], m = E.alvo(st), P = E.perfil(m);
+  const val = d => d.v + (d.attr === w.attr ? w.atk : -1) + (d.attr === P.fraco ? 2 : 0);
+  const livres = dados.slice().sort((a, b) => val(b) - val(a));
+  const at = { ataque: [], defesa: [] };
+  at.ataque.push(livres.shift().i);
+  const usar = i => { const k = livres.findIndex(d => d.i === i); if (k >= 0) livres.splice(k, 1); };
+  for (const mm of E.inimigos(st).filter(mm => E.ataca(mm.intencao))) {
+    const ord = livres.slice().sort((a, b) => a.v - b.v);
+    let escolhido = null;
+    for (const d of ord) { const t = { ...at, defesa: [...at.defesa, d.i] }; const p = E.previsao(st, t); if (p.defesa[at.defesa.length] && p.defesa[at.defesa.length].ok) { escolhido = d; break; } }
+    if (!escolhido && ord.length) escolhido = ord[ord.length - 1];
+    if (escolhido) { at.defesa.push(escolhido.i); usar(escolhido.i); }
+  }
+  for (const d of livres) { const t = { ...at, hab: d.i }; const p = E.previsao(st, t); if (p.hab && p.hab.ok) { at.hab = d.i; break; } }
+  return at;
+}
 function escolher(st, L) {
+  if (L.find(a => a.tipo === 'combate')) {
+    const sol = L.find(a => a.tipo === 'solucao'); if (sol) return sol;
+    const po = L.find(a => a.tipo === 'usar' && a.item === 'pocao'); if (po && st.hero.pv <= 2) return po;
+    return { tipo: 'ronda', at: estrategia(st) };
+  }
+  const evt = L.find(a => a.tipo === 'evento'); if (evt) return evt;
   const pri = ['solucao', 'atacar', 'atacar_chefe', 'surpresa', 'apanhar', 'mecanismo', 'ler', 'investigar', 'regressar'];
   for (const t of pri) { const a = L.find(a => a.tipo === t && !a.off); if (a) return a; }
   const novas = L.filter(a => a.tipo === 'mover' && st.exp.d.salas[a.alvo].estado !== 'explorada');
@@ -74,7 +99,7 @@ for (const cls of Object.keys(CP.CLASSES)) {
     let p = 0;
     while (st.ecra === 'expedicao' && p++ < 400) {
       const L = E.acoes(st);
-      const fraco = st.hero.pv <= 3 && L.find(a => a.tipo === 'usar' || (a.tipo === 'ritual' && a.r === 'cura'));
+      const fraco = st.hero.pv <= 3 && !L.find(a => a.tipo === 'combate') && L.find(a => a.tipo === 'usar' || (a.tipo === 'ritual' && a.r === 'cura'));
       st = E.act(st, fraco || escolher(st, L)).st;
     }
     if (st.resumo && st.resumo.tipo === 'sucesso') ganhos++;

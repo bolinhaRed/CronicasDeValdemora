@@ -8,7 +8,7 @@
 
   function fade(a, para, ms, fim) {
     const de = a.volume, t0 = performance.now();
-    const passo = t => { const k = Math.min(1, (t - t0) / ms); a.volume = de + (para - de) * k; if (k < 1) requestAnimationFrame(passo); else if (fim) fim(); };
+    const passo = t => { const k = Math.min(1, (t - t0) / ms); a.volume = Math.min(1, Math.max(0, de + (para - de) * k)); if (k < 1) requestAnimationFrame(passo); else if (fim) fim(); };
     requestAnimationFrame(passo);
   }
   function arrancar() {

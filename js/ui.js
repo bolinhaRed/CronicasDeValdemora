@@ -37,8 +37,10 @@
       ${extra || ''}<text x="50" y="${TY[lados]}" text-anchor="middle" dominant-baseline="middle" font-family="Alegreya Sans, sans-serif" font-weight="700" font-size="${fs}" fill="#fff" stroke="rgba(0,0,0,.5)" stroke-width="3" paint-order="stroke">${t}</text></svg>`;
   }
   const lados = v => E.ladosDe(v);
-  const chipsDados = h => Object.keys(CP.ATRIB).map(k =>
-    `<span class="chip" title="${CP.ATRIB[k]}">${dadoSVG(lados(h.attrs[k]), null, COR[h.classe])}${ABREV[k]} <b>d${lados(h.attrs[k])}</b></span>`).join('');
+  const chipsDados = h => Object.keys(CP.ATRIB).map(k => {
+    const v = st && st.hero === h ? E.attrEf(st, k) : h.attrs[k], ferido = v < h.attrs[k];
+    return `<span class="chip ${ferido ? 'ferido' : ''}" title="${CP.ATRIB[k]}${ferido ? ' (ferido)' : ''}">${dadoSVG(lados(v), null, COR[h.classe])}${ABREV[k]} <b>d${lados(v)}</b></span>`;
+  }).join('');
   // retratos e ícones (assets embutidos em js/retratos.js)
   const RET_CLASSE = { guerreiro: 'warrior', ladrao: 'rogue', explorador: 'ranger', mistico: 'mage' };
   const RET_MONSTRO = { esqueleto: 'skeleton', goblin: 'goblin', gorm: 'goblin', lobo: 'wolf' };
@@ -81,7 +83,7 @@
     if (antes === 'expedicao') {
       ocupado = true; Mapa.sujo = true;
       renderEstado(pvAntes);
-      $('#acoes').querySelectorAll('button').forEach(b => { b.disabled = true; });
+      document.querySelectorAll('#acoes button, #rosa button').forEach(b => { b.disabled = true; });
       await reproduzir(r.ev);
       ocupado = false;
       if (st.ecra === 'resumo') { const t = st.resumo.tipo; Som.tocar(t === 'sucesso' ? 'win' : t === 'derrota' ? 'lose' : 'step'); await dorme(500); }
@@ -97,7 +99,7 @@
   async function reproduzir(evs) {
     const narr = $('#narr'); narr.innerHTML = ''; saltar = false;
     for (const e of evs) {
-      if (e.t === 'd') await animarDado(e);
+      if (e.t === 'd' && !e.combate) await animarDado(e);
       narr.insertAdjacentHTML('beforeend', linhaEvento(e));
       narr.scrollTop = narr.scrollHeight;
       if (e.fx) { efeito(e); if (!saltar) await dorme(['boss', 'win', 'hurt', 'trap', 'kill'].includes(e.fx) ? 380 : 160); }
@@ -147,22 +149,39 @@
     let html = `<div class="cena"><canvas id="cena-aldeia" width="384" height="144" aria-label="Aldeia de Corvamonte"></canvas><h2>Região de Corvamonte</h2><button class="bt-menu" data-folha="menu">Menu</button></div>`;
     html += ultimos.filter(e => e.t !== 'd').map(e => `<p class="aviso">${esc(e.s)}</p>`).join('');
     ultimos = [];
+    const C = M.campanha;
+    if (C) {
+      const dica = C.fim ? 'Valdemora está livre. O vale ainda precisa de ti.'
+        : C.ato === 1 ? `Resolve missões nas aldeias para descobrir quem está por trás dos sinos (${Math.min(3, C.sucessos)}/3).`
+        : C.ato === 2 ? `Vai ao Santuário de Negrume e à Abadia Afogada (${C.feitos.filter(k => ['negrume', 'abadia'].includes(k)).length}/2).`
+        : 'Sobe à Torre do Corvo e silencia o Sino Negro.';
+      html += `<div class="cronica papel"><div class="cr-t"><b>A Sombra de Varro</b><span>${C.fim ? 'Epílogo' : 'Capítulo ' + ['', 'I', 'II', 'III'][C.ato]}</span></div><p>${dica}</p>
+        <div class="sombra" title="Sombra sobre Valdemora: torna as masmorras mais perigosas"><span>Sombra</span>${[...Array(10)].map((_, i) => `<i class="${i < C.sombra ? 'on' : ''}"></i>`).join('')}</div>
+        <button class="bt-papel" data-folha="cronica">Ler a crónica</button></div>`;
+    }
 
     html += `<div class="cartao">${tokenHTML(h.classe)}<div class="nome">${esc(h.nome)}</div>
       <div class="ficha"><span>${c.nome} de nível <b>${h.nivel}</b></span><span>Vida <b>${h.pv}/${h.pvMax}</b></span><span>Ouro <b>${h.ouro}</b></span><span>XP <b>${h.xp}/${E.xpProx(h.nivel)}</b></span></div>
       <div class="chips">${chipsDados(h)}</div>
       <div class="ficha" style="grid-column:1/-1"><span>${arma.nome} <b>dano ${arma.dano}${arma.atk ? ', +' + arma.atk : ''}</b></span>
-      ${h.armadura ? `<span>${CP.ITENS[h.armadura].nome} <b>+${CP.ITENS[h.armadura].def}</b></span>` : ''}${h.escudo ? `<span>Escudo <b>+1</b></span>` : ''}</div></div>`;
+      ${h.armadura ? `<span>${CP.ITENS[h.armadura].nome} <b>+${CP.ITENS[h.armadura].def}</b></span>` : ''}${h.escudo ? `<span>Escudo <b>+1</b></span>` : ''}</div>
+      ${(h.talentos || []).length ? `<div class="tags" style="grid-column:1/-1">${h.talentos.map(t => `<span class="tag" title="${esc(CP.TALENTOS[t].desc)}">${esc(CP.TALENTOS[t].nome)}</span>`).join('')}</div>` : ''}
+      ${(h.ferimentos || []).length ? `<div class="tags" style="grid-column:1/-1">${h.ferimentos.map(f => `<span class="tag fer" title="${esc(CP.FERIMENTOS[f].desc)}">${esc(CP.FERIMENTOS[f].nome)}</span>`).join('')}</div>` : ''}
+      ${(h.reliquias || []).length ? `<div class="tags" style="grid-column:1/-1">${h.reliquias.map(r => `<span class="tag rel" title="${esc(CP.RELIQUIAS[r].desc)}"><img class="px" src="${CP.KIT.ui.estrela}" alt="">${esc(CP.RELIQUIAS[r].nome)}</span>`).join('')}</div>` : ''}</div>`;
     if (h.niveisPend > 0) {
-      html += `<p class="aviso">Subiste de nível. Escolhe o dado a melhorar (vida máxima +2).</p><div class="niveis">` +
-        Object.keys(h.attrs).map(k => `<button class="bt" data-nivel="${k}" ${h.attrs[k] >= 4 ? 'disabled' : ''}>${CP.ATRIB[k]}: d${lados(h.attrs[k])} → d${lados(h.attrs[k] + 1)}</button>`).join('') + '</div>';
+      html += `<div class="nivel papel"><b>Subiste de nível!</b><p>Escolhe uma melhoria${h.niveisPend > 1 ? ` (tens ${h.niveisPend})` : ''}: um dado maior (e +2 de vida) ou um talento.</p><div class="niveis">` +
+        Object.keys(h.attrs).map(k => `<button class="bt-papel" data-nivel="${k}" ${h.attrs[k] >= 4 ? 'disabled' : ''}>${CP.ATRIB[k]}: d${lados(h.attrs[k])} → d${lados(h.attrs[k] + 1)}</button>`).join('') + '</div><div class="talentos">' +
+        E.talentosOferta(st).map(t => `<button class="bt-papel tal" data-talento="${t}"><b>${esc(CP.TALENTOS[t].nome)}</b><small>${esc(CP.TALENTOS[t].desc)}</small></button>`).join('') + '</div></div>';
     }
 
     html += `<h3>Missões</h3><div class="missoes">`;
     for (const m of M.missoes) {
       const tpl = E.tplDe(m), emCurso = m.estado === 'em_curso';
-      html += `<div class="missao ${emCurso ? 'curso' : ''}" style="--tile:url(${CP.ART[TILE[tpl.tipo]]})"><img class="px tipo" src="${retrato(RET_CLIENTE[tpl.id], emCurso ? 'sad' : 'neutral')}" alt=""><h4>${esc(m.titulo)}</h4>
-        <p class="meta">${tpl.cliente} · ${CP.LOCAIS[tpl.local].nome} · ${tpl.recompensa} moedas${emCurso ? ' · em curso' : ''}</p>
+      const am = m.ameaca || 1;
+      if (tpl.historia) html += `<p class="hist-et">História · Capítulo ${['', 'I', 'II', 'III'][tpl.ato]}</p>`;
+      html += `<div class="missao ${emCurso ? 'curso' : ''} ${tpl.historia ? 'hist' : ''}" style="--tile:url(${CP.ART[TILE[tpl.tipo]]})"><img class="px tipo" src="${CP.KIT.retratos[{ sinos: 'aldeoes', reliquia: 'frei', mineiros: 'goncalo', negrume: 'mensageiro', abadia: 'frei', torre: 'frei' }[tpl.id]]}" alt=""><h4>${esc(m.titulo)}</h4>
+        <p class="ameaca" title="Ameaça">${'★'.repeat(am)}<span>${'★'.repeat(3 - am)}</span> ${['', 'Tranquila', 'Perigosa', 'Mortal'][am]}</p>
+        <p class="meta">${tpl.cliente} · ${CP.LOCAIS[tpl.local].nome} · ${m.recompensa || tpl.recompensa} moedas${emCurso ? ' · em curso' : ''}</p>
         <p>${tpl.objetivo}</p>
         <div class="linha"><button class="bt bt-p" data-partir="${m.id}">${emCurso ? 'Continuar a expedição' : 'Partir'}</button>
         ${emCurso ? `<button class="bt bt-s" data-abandonar="${m.id}">Desistir</button>` : ''}</div></div>`;
@@ -170,32 +189,67 @@
     html += `</div>`;
 
     for (const [id, L] of Object.entries(CP.LOCAIS)) {
-      if (id === 'pedrafunda' && !M.flags.pedrafunda) continue;
+      if ((id === 'pedrafunda' && !M.flags.pedrafunda) || (id === 'negrume' && !M.flags.negrume)) continue;
       const rep = M.rep[id] || 0;
       html += `<h3>${L.nome}</h3><p class="p2">${L.desc} Reputação: ${rep > 0 ? '+' : ''}${rep}.</p>` +
         E.ecosAldeia(st, id).map(t => `<p class="eco">${esc(t)}</p>`).join('');
     }
 
-    html += `<h3>Estalagem e mercado</h3><div class="npc"><img class="px" src="${retrato('merchant', M.rep.corvamonte >= 2 ? 'happy' : 'neutral')}" alt=""><p>${M.rep.corvamonte >= 2 ? '«Para ti, amigo, há desconto.»' : '«Olha bem antes de comprares, viajante.»'}</p></div><div class="loja">`;
-    html += `<button class="bt" data-descansar ${h.pv >= h.pvMax || h.ouro < 2 ? 'disabled' : ''}><span>Dormir na estalagem</span><small>Recuperas a vida toda</small><span class="p">2 moedas</span></button>`;
+    html += `<h3>Estalagem e mercado</h3><div class="npc"><img class="px" src="${CP.KIT.retratos.mercador}" alt=""><p>${M.rep.corvamonte >= 2 ? '«Para ti, amigo, há desconto.»' : '«Olha bem antes de comprares, viajante.»'}</p></div><div class="loja">`;
+    const gratis = (M.melhorias.estalagem || 0) >= 1;
+    html += `<button class="bt" data-descansar ${h.pv >= h.pvMax || (!gratis && h.ouro < 2) ? 'disabled' : ''}><span>Dormir na estalagem</span><small>Recuperas a vida toda</small><span class="p">${gratis ? 'grátis' : '2 moedas'}</span></button>`;
+    const rl = E.reliquiaLoja(st);
+    if (rl) html += `<button class="bt" data-reliquia ${h.ouro < 40 ? 'disabled' : ''}><span><img class="px ic" src="${CP.KIT.ui.estrela}" alt="">${esc(CP.RELIQUIAS[rl].nome)}</span><small>Relíquia: ${esc(CP.RELIQUIAS[rl].desc)}</small><span class="p">40 moedas</span></button>`;
     for (const id of E.stockLoja(st)) {
       const it = CP.ITENS[id], p = E.precoLoja(st, id);
       const tem = h.arma === id || h.armadura === id || h.escudo === id;
-      const cheio = ['consumivel', 'ferramenta'].includes(it.tipo) && h.mochila.length >= CP.MOCHILA;
+      const cheio = ['consumivel', 'ferramenta'].includes(it.tipo) && h.mochila.length >= E.capMochila(st);
       const det = it.tipo === 'arma' ? `Dano ${it.dano}${it.atk ? ', +' + it.atk + ' ao dado' : ''}, usa ${CP.ATRIB[it.attr]}` : it.def ? `Defesa +${it.def}` : (it.desc || '');
       html += `<button class="bt" data-comprar="${id}" ${tem || cheio || h.ouro < p ? 'disabled' : ''}><span>${icone(id)}${it.nome}</span><small>${det}${tem ? ' · já tens' : ''}</small><span class="p">${p} moedas</span></button>`;
     }
     h.mochila.forEach((id, i) => { const it = CP.ITENS[id]; if (it.valor) html += `<button class="bt" data-vender="${i}"><span>${icone(id)}Vender ${it.nome}</span><small>Tesouro</small><span class="p">+${it.valor} moedas</span></button>`; });
     html += `</div>`;
 
+    // companheiros
+    html += `<h3>Companheiro</h3><p class="p2">Um companheiro junta o seu dado aos teus em cada ronda de combate.</p><div class="comps">` +
+      Object.entries(CP.COMPANHEIROS).filter(([, Cp]) => !Cp.requer || M.flags[Cp.requer]).map(([id, Cp]) =>
+        `<button class="comp ${h.companheiro === id ? 'on' : ''}" data-comp="${id}"><img class="px" src="${CP.KIT.retratos[Cp.retrato]}" alt=""><b>${esc(Cp.nome)}</b><small>${esc(Cp.desc)}</small></button>`).join('') +
+      `<button class="comp ${!h.companheiro ? 'on' : ''}" data-comp=""><div class="sem">—</div><b>Ir sozinho</b><small>Sem companhia.</small></button></div>`;
+    if ((h.ferimentos || []).length) html += `<h3>Capela</h3><div class="loja">` + h.ferimentos.map(f => `<button class="bt" data-curar="${f}" ${h.ouro < 10 ? 'disabled' : ''}><span>Tratar: ${esc(CP.FERIMENTOS[f].nome)}</span><small>${esc(CP.FERIMENTOS[f].desc)}</small><span class="p">10 moedas</span></button>`).join('') + `</div>`;
+    html += `<h3>Melhorar a aldeia</h3><div class="loja">` + Object.entries(CP.MELHORIAS).map(([id, D]) => {
+      const n = M.melhorias[id] || 0, prox = D.niveis[n];
+      return `<button class="bt" data-melhorar="${id}" ${!prox || h.ouro < prox.custo ? 'disabled' : ''}><span>${D.nome} ${'●'.repeat(n)}${'○'.repeat(D.niveis.length - n)}</span>
+        <small>${prox ? esc(prox.desc) : 'Completo: ' + esc(D.niveis.map(v => v.desc).join(' '))}</small><span class="p">${prox ? prox.custo + ' moedas' : '✔'}</span></button>`;
+    }).join('') + `</div>`;
     html += `<h3>Mochila</h3>` + slots(h) + listaMochila(false);
     html += `<h3>Campanha</h3><div class="loja"><button class="bt" data-folha="campanha"><span>Exportar ou importar</span></button>
       <button class="bt" data-folha="regras"><span>Regras</span></button>
+      <button class="bt" data-folha="bestiario"><span>Bestiário e relíquias</span></button>
       <button class="bt" data-folha="menu"><span>Som e música</span></button></div>`;
     $('#aldeia').innerHTML = html;
+    if (C && C.cena) mostrarCena(C);
   }
 
-  const slots = h => `<div class="slots">${[...Array(CP.MOCHILA)].map((_, i) => i < h.mochila.length ? `<i class="c" title="${CP.ITENS[h.mochila[i]].nome}">${icone(h.mochila[i])}</i>` : '<i></i>').join('')}</div>`;
+  /* ================= Cenas da história ================= */
+  function mostrarCena(C) {
+    const fim = C.cena === 'fim';
+    const passos = fim ? [['frei', 'Epílogo', 'A Torre do Corvo calou-se.']].concat(C.fim.map(t => ['', 'Epílogo', t])) : CP.CENAS[C.cena];
+    let i = 0;
+    const ov = document.createElement('div'); ov.className = 'cena-ov';
+    const mostra = () => {
+      const [quem, nome, txt] = passos[i];
+      ov.innerHTML = `<div class="cena-c papel">${quem ? `<img class="px" src="${CP.KIT.retratos[quem]}" alt="">` : ''}<div><b>${esc(nome)}</b><p>${esc(txt)}</p></div>
+        <div class="cena-b"><small>${i + 1}/${passos.length}</small><button class="bt-papel" data-cena>${i < passos.length - 1 ? 'Continuar' : (fim ? 'Fim' : 'Aceitar a missão')}</button></div></div>`;
+    };
+    ov.addEventListener('click', e => {
+      if (!e.target.closest('[data-cena]')) return;
+      Som.tocar('pick');
+      if (++i < passos.length) mostra(); else { ov.remove(); executar({ tipo: 'cena_vista' }); }
+    });
+    mostra(); document.body.appendChild(ov); Som.tocar(fim ? 'win' : 'boss');
+  }
+
+  const slots = h => `<div class="slots">${[...Array(E.capMochila(st))].map((_, i) => i < h.mochila.length ? `<i class="c" title="${CP.ITENS[h.mochila[i]].nome}">${icone(h.mochila[i])}</i>` : '<i></i>').join('')}</div>`;
   function listaMochila(naExp) {
     const h = st.hero;
     if (!h.mochila.length) return `<p class="vazio">Mochila vazia.</p>`;
@@ -239,6 +293,14 @@
       S.personagem(x, 'guarda', 'Idle', 'S', tt, 160, 76, 1, false);
       S.personagem(x, 'aldea', 'Idle', 'S', tt + 300, 258, 116, 1, false);
       S.personagem(x, 'aldeao', 'Idle', 'S', tt + 700, 314, 118, 1, true);
+      S.personagem(x, 'm:clerigo', 'Idle', 'S', tt + 200, 222, 74, 1, true);
+      S.personagem(x, 'm:pastor', 'Idle', 'S', tt + 500, 34, 104, 1, false);
+      S.personagem(x, 'm:ovelha', 'Idle', 'S', tt + 100, 58, 100, 1, false);
+      S.personagem(x, 'm:ovelha', 'Idle', 'S', tt + 900, 80, 106, 1, true);
+      S.personagem(x, 'm:porco', 'Idle', 'S', tt + 400, 112, 86, 1, false);
+      S.personagem(x, 'm:galinha', 'Idle', 'S', tt + 600, 126, 96, 1, true);
+      S.personagem(x, 'm:galinha', 'Idle', 'S', tt + 50, 140, 92, 1, false);
+      S.personagem(x, 'm:ganso', 'Idle', 'S', tt + 300, 344, 116, 1, true);
       if (st) S.personagem(x, S.CLASSE[st.hero.classe], 'Idle', 'D', tt, 196, 84, 1, false);
       // luz de fim de tarde e brilho das chamas
       x.fillStyle = 'rgba(255,160,80,.08)'; x.fillRect(0, 0, 384, 144);
@@ -281,6 +343,8 @@
     requestAnimationFrame(() => { $('#st-pvf').style.width = pct + '%'; });
     $('#st-pvt').textContent = `${h.pv}/${h.pvMax} PV`;
     $('#st-dados').innerHTML = chipsDados(h);
+    $('#st-folego').innerHTML = `<img class="px" src="${CP.KIT.ui.gema}" alt="">${x.folego}`;
+    $('#st-folego').title = 'Fôlego: relança dados em combate';
     $('#st-perigo').innerHTML = [1, 2, 3, 4, 5, 6].map(i => `<i class="${i <= x.perigo ? 'on' : ''} ${x.perigo >= 4 ? 'alto' : ''}"></i>`).join('');
     const somOn = Som.ligado() || CP.Musica.ligada();
     $('#bt-som').textContent = somOn ? '♪' : '×';
@@ -303,6 +367,122 @@
       : { fugir: 17, esgueirar: 16, investigar: 2, descansar: 15, atacar: 20, atacar_chefe: 20, surpresa: 20 }[a.tipo] || (a.tipo === 'usar' && a.item === 'oleo' ? 1 : 0);
     return n && CP.KIT.feitico[n] ? `<img class="px fi" src="${CP.KIT.feitico[n]}" alt="">` : '';
   }
+  // Rosa dos ventos: setas para as saídas conhecidas da sala
+  const SETA = { norte: '▲', sul: '▼', este: '▶', oeste: '◀' }, LETRA = { norte: 'N', sul: 'S', este: 'E', oeste: 'O' };
+  function renderRosa() {
+    const el = $('#rosa'); if (!el) return;
+    const porDir = {};
+    acoesAtuais.forEach((a, i) => {
+      if (!a.dir) return;
+      const atual = porDir[a.dir];
+      // preferência: mover > fechadura > arrombar > recuar
+      const peso = { mover: 4, fechadura: 3, arrombar: 2, recuar: 1 }[a.tipo] || 0;
+      if (!atual || peso > atual.peso) porDir[a.dir] = { i, a, peso };
+    });
+    el.innerHTML = ['norte', 'oeste', 'este', 'sul'].map(d => {
+      const o = porDir[d];
+      if (!o) return `<button class="r-${d}" disabled aria-label="Sem saída a ${d}"><span>${SETA[d]}</span></button>`;
+      const a = o.a, tranc = a.tipo === 'arrombar' || a.tipo === 'fechadura';
+      const cls = ['r-' + d, a.nova ? 'nova' : '', tranc ? 'tranc' : '', a.tipo === 'recuar' ? 'recuar' : ''].join(' ');
+      return `<button class="${cls}" data-acao="${o.i}" aria-label="${esc(a.rotulo)}" title="${esc(a.rotulo)}"><span>${SETA[d]}</span>${tranc ? '<i>🔒︎</i>' : a.nova ? '<i>?</i>' : ''}</button>`;
+    }).join('') + `<div class="r-c">${['N', 'O', 'E', 'S'].map(l => `<b class="l-${l}">${l}</b>`).join('')}</div>`;
+  }
+  /* ================= Combate: tabuleiro de dados ================= */
+  let atrib = { ataque: [], defesa: [], hab: null, banir: null, fuga: null }, selDado = null, rondaVista = 0;
+  const atribVazio = () => ({ ataque: [], defesa: [], hab: null, banir: null, fuga: null });
+  const ICONE_INT = { golpe: 'f20', forte: 'f1', drenar: 'f4', feitico: 'f3', teia: 'f16', defender: 'o:shield', chamar: 'o:horn', fugir: 'f17', curar: 'f14', atordoado: 'u:estrela' };
+  function imgIcone(k) {
+    if (!k) return '';
+    const [tipo, n] = k.includes(':') ? k.split(':') : [k[0], k.slice(1)];
+    const src = tipo === 'f' ? CP.KIT.feitico[n] : tipo === 'o' ? CP.OBJ[n] : tipo === 'u' ? CP.KIT.ui[n] : tipo === 'r' ? CP.KIT.retratos[n] : '';
+    return src ? `<img class="px ic-i" src="${src}" alt="">` : '';
+  }
+  const IMG_CRIA = {};
+  function imgCriatura(m) {
+    if (CP.KIT.retratos[m.tipo]) return CP.KIT.retratos[m.tipo];
+    const k = m.tipo; if (IMG_CRIA[k]) return IMG_CRIA[k];
+    return (IMG_CRIA[k] = CP.Spr.temSprite(m.tipo) ? CP.Spr.imagem(CP.Spr.MONSTRO[m.tipo], 'Idle', 64) : CP.Fichas.imagemMonstro(m, 64));
+  }
+  function ondeEsta(i) {
+    if (atrib.ataque.includes(i)) return 'ataque'; if (atrib.defesa.includes(i)) return 'defesa';
+    for (const k of ['hab', 'banir', 'fuga']) if (atrib[k] === i) return k;
+    return null;
+  }
+  function tirar(i) {
+    atrib.ataque = atrib.ataque.filter(v => v !== i); atrib.defesa = atrib.defesa.filter(v => v !== i);
+    for (const k of ['hab', 'banir', 'fuga']) if (atrib[k] === i) atrib[k] = null;
+  }
+  function renderCombate(idxItens) {
+    const x = st.exp, c = x.combate, h = st.hero;
+    if (c.ronda !== rondaVista) { atrib = atribVazio(); selDado = null; }
+    const novo = c.ronda !== rondaVista; rondaVista = c.ronda;
+    const p = E.previsao(st, atrib), slots = E.slotsCombate(st);
+    const vis = st.exp.d.salas[x.sala].monstros.filter(m => m.pv > 0 && (m.acordado || m.chefe));
+    let html = `<div class="cb">`;
+    // intenções
+    html += `<div class="cb-ints">` + vis.map(m => {
+      const P = E.perfil(m), I = m.intencao, fraq = E.conhecerFraqueza(st, m);
+      return `<div class="int papel ${m.chefe ? 'chefe' : ''}"><img class="int-r px" src="${imgCriatura(m)}" alt="">
+        <div class="int-t"><b>${esc(m.nome)}</b><span class="int-pv">${[...Array(m.pvMax)].map((_, i) => `<i class="${i < m.pv ? 'on' : ''}"></i>`).join('')}</span>
+        <span class="int-a">${imgIcone(ICONE_INT[I ? I.tipo : 'atordoado'])}${esc(E.textoIntencao(I))}</span>
+        <small>${CP.FAMILIAS[P.fam]}${fraq ? ` · fraco contra <b>${CP.ATRIB[P.fraco]}</b>` : ' · fraqueza desconhecida'}</small></div></div>`;
+    }).join('') + `</div>`;
+    // dados
+    const cor = COR[h.classe];
+    html += `<div class="cb-dados">` + c.dados.map((d, i) => {
+      const onde = ondeEsta(i);
+      return `<button class="cd ${d.perdido ? 'perdido' : ''} ${selDado === i ? 'sel' : ''} ${onde ? 'usado' : ''} ${novo && !reduzido() ? 'rola' : ''}" data-dado="${i}" ${d.perdido ? 'disabled' : ''}
+        aria-label="${d.comp ? CP.COMPANHEIROS[d.comp].nome : CP.ATRIB[d.attr]} ${d.v}">${dadoSVG(d.lados, d.perdido ? '×' : d.v, d.comp ? '#8a6a2a' : cor)}<small>${d.comp ? CP.COMPANHEIROS[d.comp].nome.split(',')[0] : ABREV[d.attr]}${onde ? ' · ' + { ataque: 'atq', defesa: 'def', hab: 'hab', banir: 'ban', fuga: 'fuga' }[onde] : ''}</small></button>`;
+    }).join('') + `</div>`;
+    html += `<p class="cb-ajuda">${selDado != null ? `Toca num espaço para pôr o dado de ${c.dados[selDado].comp ? CP.COMPANHEIROS[c.dados[selDado].comp].nome.split(',')[0] : CP.ATRIB[c.dados[selDado].attr]} (${c.dados[selDado].v}).` : 'Toca num dado e depois no espaço onde o queres usar.'}</p>`;
+    // espaços
+    html += `<div class="cb-slots">` + slots.map(sl => {
+      const ds = sl.id === 'ataque' ? atrib.ataque : sl.id === 'defesa' ? atrib.defesa : (atrib[sl.id] != null ? [atrib[sl.id]] : []);
+      let prev = '';
+      if (sl.id === 'ataque' && p.ataque) prev = `<em class="${p.ataque.ok ? 'ok' : 'ko'}">${esc(p.ataque.txt)}</em>`;
+      if (sl.id === 'defesa') prev = p.defesa.map(o => `<em class="${o.ok ? 'ok' : 'ko'}">${esc(o.txt)}</em>`).join('') || '<em>Ninguém ataca nesta ronda</em>';
+      if (['hab', 'banir', 'fuga'].includes(sl.id) && p[sl.id]) prev = `<em class="${p[sl.id].ok ? 'ok' : 'ko'}">${esc(p[sl.id].txt)}</em>`;
+      return `<button class="sl papel s-${sl.id}" data-slot="${sl.id}"><b>${esc(sl.nome)}</b><small>${esc(sl.desc)}</small>
+        <span class="sl-d">${ds.map(i => `<i>${dadoSVG(c.dados[i].lados, c.dados[i].v, c.dados[i].comp ? '#8a6a2a' : cor)}</i>`).join('') || '<i class="vz"></i>'}</span>${prev}</button>`;
+    }).join('') + `</div>`;
+    // resumo e botões
+    const sofre = p.fuga && p.fuga.ok ? 0 : p.defesa.reduce((a, o) => a + (o.ok ? 0 : o.dano), 0);
+    const causa = (p.ataque && p.ataque.ok ? p.ataque.dano : 0) + (p.banir && p.banir.ok ? p.banir.dano : 0);
+    const gratis = c.relancesGratis > 0;
+    html += `<div class="cb-res">${p.fuga && p.fuga.ok ? 'Vais fugir.' : `Causas <b>${causa}</b> de dano · sofres <b class="${sofre ? 'ko' : ''}">${sofre}</b>`}</div>
+      <div class="cb-bts">
+        <button class="bt" data-relancar ${selDado == null || (x.folego <= 0 && !gratis) ? 'disabled' : ''}>${imgIcone('u:gema')}Relançar (${gratis ? 'grátis' : x.folego + ' fôlego'})</button>
+        ${idxItens.map(([a, i]) => `<button class="bt ${a.grupo}" data-acao="${i}">${iconeAcao(a)}${esc(a.rotulo)}</button>`).join('')}
+        <button class="bt bt-p" data-ronda>Terminar ronda</button>
+      </div></div>`;
+    return html;
+  }
+  function tocarDado(i) {
+    if (ondeEsta(i)) { tirar(i); selDado = null; }
+    else selDado = selDado === i ? null : i;
+    Som.tocar('pick'); renderExp();
+  }
+  function tocarSlot(id) {
+    const max = (E.slotsCombate(st).find(s => s.id === id) || {}).max || 1;
+    if (selDado == null) {   // sem dado escolhido: tira o último
+      if (id === 'ataque' || id === 'defesa') atrib[id].pop(); else atrib[id] = null;
+    } else {
+      tirar(selDado);
+      if (id === 'ataque' || id === 'defesa') { atrib[id].push(selDado); while (atrib[id].length > max) atrib[id].shift(); }
+      else atrib[id] = selDado;
+      selDado = null;
+    }
+    Som.tocar('pick'); renderExp();
+  }
+
+  /* ================= Evento com escolhas (caixa de diálogo) ================= */
+  function renderEvento(idxEv) {
+    const s = st.exp.d.salas[st.exp.sala], D = CP.EVENTOS[s.evento.id];
+    const img = D.img[0] === 'f' ? CP.KIT.feitico[D.img.slice(1)] : CP.KIT.retratos[{ r17: 'prisioneiro', r20: 'mimico', r15: 'ferido' }[D.img]] || CP.KIT.feitico[11];
+    return `<div class="evento papel"><img class="ev-r px" src="${img}" alt=""><div><b>${esc(D.titulo)}</b><p>${esc(D.txt)}</p></div>
+      <div class="ev-op">${idxEv.map(([a, i]) => `<button class="bt-papel" data-acao="${i}">${esc(a.rotulo)}</button>`).join('')}</div></div>`;
+  }
+
   function renderExp() {
     renderEstado();
     const narr = $('#narr');
@@ -311,8 +491,19 @@
       narr.innerHTML = evs.map(linhaEvento).join('');
     }
     acoesAtuais = E.acoes(st);
-    $('#acoes').innerHTML = acoesAtuais.map((a, i) =>
-      `<button class="bt ${a.grupo || ''}" data-acao="${i}" ${a.off ? 'disabled' : ''}>${iconeAcao(a)}${esc(a.rotulo)}${a.off ? ` <small>(${a.motivo})</small>` : ''}</button>`).join('');
+    renderRosa();
+    const emCombate = acoesAtuais.some(a => a.tipo === 'combate');
+    const idx = acoesAtuais.map((a, i) => [a, i]);
+    let html = '';
+    if (emCombate) html = renderCombate(idx.filter(([a]) => ['usar', 'solucao'].includes(a.tipo)));
+    else {
+      const evs = idx.filter(([a]) => a.tipo === 'evento');
+      if (evs.length) html += renderEvento(evs);
+      html += idx.filter(([a]) => a.tipo !== 'evento' && !(a.dir && ['mover', 'arrombar', 'fechadura'].includes(a.tipo))).map(([a, i]) =>
+        `<button class="bt ${a.grupo || ''}" data-acao="${i}" ${a.off ? 'disabled' : ''}>${iconeAcao(a)}${esc(a.rotulo)}${a.off ? ` <small>(${a.motivo})</small>` : ''}</button>`).join('');
+    }
+    $('#acoes').innerHTML = html;
+    $('#ecra-exp').classList.toggle('combate', emCombate);
     Mapa.sujo = true;
   }
 
@@ -414,6 +605,7 @@
       case 'fire': Mapa.particulas(wM, '#ff9a3c', 22, 1.6, -1.6); flash('#ff8a2a'); break;
       case 'omen': flash('#3a1f4a'); break;
       case 'boss': faixa('Confronto', true); flash('#2a0c08'); break;
+      case 'relic': faixa('Relíquia encontrada!'); Mapa.particulas(wH, '#f3d27a', 24, 1.6, -1); break;
       case 'win': faixa('Objetivo cumprido'); Mapa.particulas(wH, '#f3d27a', 30, 2.2, -1); break;
       case 'peace': Mapa.particulas(wM, '#fff6d8', 26, 1.4, -1.2); break;
       case 'lose': flash('#000'); break;
@@ -732,6 +924,14 @@
         const mp = this.posMonstros(sAt)[0];
         if (mp) { const dx = mp.x - h.x, dy = mp.y - h.y; if (Math.abs(dx) > Math.abs(dy)) { dirH = 'S'; flipH = dx < 0; } else { dirH = dy < 0 ? 'U' : 'D'; flipH = dx < 0; } }
       }
+      const Cp = st.hero.companheiro && CP.COMPANHEIROS[st.hero.companheiro];
+      if (Cp) {
+        if (!this.comp) this.comp = { x: h.x - C * .8, y: h.y + C * .2 };
+        const tx = h.x + (flipH ? C * .8 : -C * .8), ty = h.y + C * .25;
+        this.comp.x += (tx - this.comp.x) * Math.min(1, dt * 3.5); this.comp.y += (ty - this.comp.y) * Math.min(1, dt * 3.5);
+        const andaC = Math.hypot(tx - this.comp.x, ty - this.comp.y) > 3;
+        S.personagem(ctx, Cp.sprite, andaC ? 'Walk' : 'Idle', 'S', t + 400, this.comp.x, this.comp.y, kk, tx < this.comp.x - 2 || flipH);
+      }
       S.personagem(ctx, S.CLASSE[st.hero.classe], ah ? ah.anim : (anda ? 'Walk' : 'Idle'), dirH, ah ? ah.t : t, h.x, h.y, kk, flipH, !!ah);
       ctx.restore();
 
@@ -815,6 +1015,25 @@
           <div class="pag d">${x.pistas.length > 1 ? '<b>Pistas</b>' + x.pistas.slice(1).map(p => `<p>${esc(p)}</p>`).join('') : `<p><i>${x.pistas.length ? 'Ainda há mais por descobrir…' : 'As páginas ainda estão em branco. Explora para encontrares pistas.'}</i></p>`}</div></div>
         </div>
         <h3>Registo</h3><div class="narr" style="padding:0">${x.registo.slice(-80).map(linhaEvento).join('')}</div>`;
+    } else if (tipo === 'cronica') {
+      const C = st.mundo.campanha;
+      const esq = `<b>A Sombra de Varro</b><p>${C.fim ? 'Concluída.' : 'Capítulo ' + ['', 'I', 'II', 'III'][C.ato] + '.'}</p>` + (C.fragmentos[0] ? `<b>Fragmento</b><p>${esc(C.fragmentos[0])}</p>` : '<p><i>Ainda nada se sabe.</i></p>');
+      const dir = C.fragmentos.slice(1).map(f => `<p>${esc(f)}</p>`).join('') + (C.feitos.length ? `<b>Capítulos vividos</b>` + C.feitos.map(k => `<p>${esc(E.tplDe({ tpl: k }).titulo())}</p>`).join('') : '') + (C.fim ? `<b>Epílogo</b>` + C.fim.map(t => `<p>${esc(t)}</p>`).join('') : '');
+      h = `<h2>Crónica de Valdemora</h2><div class="livro"><canvas id="livro-cv" width="272" height="272" aria-hidden="true"></canvas>
+        <div class="pags"><div class="pag e">${esq}</div><div class="pag d">${dir || '<p><i>As páginas esperam pelas tuas façanhas.</i></p>'}</div></div></div>`;
+    } else if (tipo === 'bestiario') {
+      const B = st.mundo.bestiario || {}, tipos = Object.keys(CP.MONSTROS), vistos = tipos.filter(t => B[t]).length;
+      h = `<h2>Bestiário</h2><p class="p2">${vistos} de ${tipos.length} criaturas vistas. Derrota uma criatura para conheceres a fraqueza da espécie.</p><div class="besti">` +
+        tipos.map(t => {
+          const P = CP.MONSTROS[t], b = B[t];
+          if (!b) return `<div class="bc desconhecida"><div class="bc-i">?</div><b>???</b></div>`;
+          const fr = E.conhecerFraqueza(st, { tipo: t });
+          return `<div class="bc"><img class="px bc-i" src="${imgCriatura({ tipo: t, ...P })}" alt=""><b>${esc(P.nome)}</b><small>${CP.FAMILIAS[P.fam]} · ${b.derrotados} derrotad${b.derrotados === 1 ? 'o' : 'os'}</small>
+            <small>${fr ? 'Fraco contra ' + CP.ATRIB[P.fraco] : 'Fraqueza desconhecida'}</small></div>`;
+        }).join('') + `</div><h3>Relíquias</h3><p class="p2">${(st.hero.reliquias || []).length} de ${Object.keys(CP.RELIQUIAS).length}. Encontram-se em câmaras ocultas, com chefes, em eventos ou no mercado melhorado.</p><div class="besti">` +
+        Object.entries(CP.RELIQUIAS).map(([k, R]) => (st.hero.reliquias || []).includes(k)
+          ? `<div class="bc"><img class="px bc-i" src="${CP.KIT.ui.estrela}" alt=""><b>${esc(R.nome)}</b><small>${esc(R.desc)}</small></div>`
+          : `<div class="bc desconhecida"><div class="bc-i">?</div><b>???</b></div>`).join('') + `</div>`;
     } else if (tipo === 'regras') {
       const cor = st ? COR[st.hero.classe] : '#7a6a5a';
       h = `<h2>Regras</h2><div class="regras">
@@ -822,7 +1041,16 @@
         <div class="tabela-d">${[4, 6, 8, 10, 12].map(n => `<div>${dadoSVG(n, null, cor)}d${n}</div>`).join('')}</div>
         <p><b>Teste:</b> lanças o dado do atributo e somas o bónus do equipamento. Precisas de 4 ou mais; a dificuldade e as defesas das criaturas aumentam o número. Um 1 natural falha sempre. Tirar o valor máximo num ataque causa +1 de dano.</p>
         <p><b>Vantagem:</b> lanças dois dados iguais e ficas com o melhor.</p>
-        <p><b>Combate:</b> atacas e depois a criatura ataca; defendes-te com Agilidade e a armadura soma ao dado. Podes fugir com Agilidade.</p>
+        <p><b>Combate por rondas:</b> no início de cada ronda lanças os teus quatro dados (um por atributo) e cada criatura mostra o que vai fazer. Depois distribuis os dados: <b>Atacar</b> (o dado da tua arma soma o bónus; os outros têm −1), <b>Defender</b> (um dado por cada ataque anunciado; a armadura soma), a <b>habilidade da classe</b> ou <b>Fugir</b>. Vês o resultado antes de confirmares em «Terminar ronda».</p>
+        <p><b>Fraquezas:</b> cada criatura é fraca contra um atributo. Atacar com esse dado é mais fácil (−2 à defesa dela) e causa +1 de dano. Descobres a fraqueza ao derrotar a espécie, em eventos ou com relíquias.</p>
+        <p><b>Fôlego:</b> gasta 1 para relançar um dado. Começas cada expedição com 3 e recuperas ao descansar.</p>
+        <p><b>Habilidades:</b> Guerreiro — Investida (4+: +2 de dano); Ladrão — Golpe baixo (dado até 3 soma-se ao ataque); Explorador — Rasteira (5+: o alvo não age); Místico — Prece (cura metade do dado) e Banir contra mortos-vivos.</p>
+        <p><b>Chefes:</b> a meio da vida mudam de comportamento e podem chamar ajuda.</p>
+        <p><b>A Sombra de Varro:</b> a campanha tem três capítulos. As missões das aldeias revelam fragmentos da verdade; as missões de História fazem a campanha avançar. As escolhas que fazes (poupar, salvar, devolver) mudam o capítulo final e o epílogo.</p>
+        <p><b>Sombra:</b> sobe quando te retiras, perdes ou desistes, e quando adias a história. Com Sombra alta as missões são mais perigosas e o perigo começa mais alto. Cumprir missões faz a Sombra recuar.</p>
+        <p><b>Companheiros:</b> levas um contigo; junta o seu dado aos teus em cada ronda. Alguns só aparecem se os salvaste ou poupaste.</p>
+        <p><b>Ferimentos:</b> cair em combate deixa uma mazela que baixa um dado ou a vida máxima, até a tratares na capela.</p>
+        <p><b>Eventos:</b> algumas salas trazem escolhas com risco e recompensa. Relíquias dão efeitos permanentes.</p>
         <p><b>Criaturas a dormir:</b> podes atacar de surpresa (com vantagem e sem resposta), esgueirar-te ou recuar.</p>
         <p><b>Perigo:</b> sobe com barulho, falhas, descansos e salas novas. Aos 3 há um presságio; aos 6 aparece uma criatura errante e o perigo volta a 0.</p>
         <p><b>Investigar:</b> uma tentativa por sala. Revela tesouros e passagens secretas.</p>
@@ -844,6 +1072,7 @@
         <button class="bt" data-fechar><span>Continuar a jogar</span></button>
         ${naExp ? `<button class="bt" data-desistir><span>Desistir desta masmorra</span><small>Voltas já à aldeia com o que encontraste. A missão sai do quadro e a reputação desce 1.</small></button>` : ''}
         <button class="bt" data-folha="regras"><span>Regras</span></button>
+        <button class="bt" data-folha="bestiario"><span>Bestiário e relíquias</span></button>
         <button class="bt" data-som><span>Efeitos sonoros: ${Som.ligado() ? 'ligados' : 'desligados'}</span></button>
         <button class="bt" data-musica><span>Música: ${CP.Musica.ligada() ? 'ligada' : 'desligada'}</span></button>
         <button class="bt" data-folha="campanha"><span>Exportar ou importar campanha</span></button>
@@ -851,7 +1080,7 @@
     }
     $('#folha-in').innerHTML = h;
     $('#folha').hidden = false;
-    if (tipo === 'registo') { Livro.abrir(); Som.tocar('reveal'); }
+    if (tipo === 'registo' || tipo === 'cronica') { Livro.abrir(); Som.tocar('reveal'); }
   }
   const formImportar = () => `<textarea id="tx-imp" placeholder="Cola aqui o código da campanha"></textarea>
     <div class="loja"><input type="file" id="fi-imp" accept=".json,application/json"><button class="bt" data-importar>Importar</button></div><p id="imp-msg" class="p2"></p>`;
@@ -872,6 +1101,15 @@
     if (b.id === 'bt-importar-ini') return abrirFolha('importar');
     if (b.id === 'bt-som' || D.som !== undefined) { const on = Som.alternar(); if (on) { Som.tocar('pick'); if (st && st.ecra === 'expedicao') Som.ambiente(true); } if (st) { if (st.ecra === 'expedicao') renderEstado(); else render(); } if (!$('#folha').hidden && D.som !== undefined) abrirFolha('menu'); return; }
     if (D.acao !== undefined) return executar(acoesAtuais[+D.acao]);
+    if (D.dado !== undefined) return tocarDado(+D.dado);
+    if (D.slot) return tocarSlot(D.slot);
+    if (D.ronda !== undefined) { const at = atrib; atrib = atribVazio(); return executar({ tipo: 'ronda', at }); }
+    if (D.relancar !== undefined) { const i = selDado; tirar(i); selDado = null; return executar({ tipo: 'relancar', i }); }
+    if (D.talento) return executar({ tipo: 'talento', id: D.talento });
+    if (D.comp !== undefined) { Som.tocar('pick'); return executar({ tipo: 'companheiro', id: D.comp || null }); }
+    if (D.curar) return executar({ tipo: 'curar_ferimento', id: D.curar });
+    if (D.melhorar) { Som.tocar('coin'); return executar({ tipo: 'melhorar', id: D.melhorar }); }
+    if (D.reliquia !== undefined) { Som.tocar('coin'); return executar({ tipo: 'comprar_reliquia' }); }
     if (D.partir) return executar({ tipo: 'partir', mid: D.partir });
     if (D.abandonar) { if (confirm('Desistir desta missão? A reputação na aldeia desce.')) executar({ tipo: 'abandonar', mid: D.abandonar }); return; }
     if (D.nivel) return executar({ tipo: 'nivel', attr: D.nivel });
@@ -905,6 +1143,8 @@
   $('#narr').addEventListener('click', () => { if (ocupado) saltar = true; });
 
   /* ================= Arranque ================= */
+  const raiz = document.documentElement.style;
+  raiz.setProperty('--ui-painel', `url(${CP.KIT.ui.painel})`); raiz.setProperty('--ui-botao', `url(${CP.KIT.ui.botao})`); raiz.setProperty('--ui-botao2', `url(${CP.KIT.ui.botao2})`);
   Mapa.init();
   st = CP.Save.carregar();
   CP.Spr.carregar().then(() => {

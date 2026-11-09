@@ -60,7 +60,33 @@ kit['aldeia_anim'] = {'fogueira': u2(F / 'Tileset/Fire.png'), 'tocha': u2(F / 'T
 kit['livro'] = u2(B / 'PNG/Open_book.png')
 kit['feitico'] = {n: u2(B / f'PNG/Icons/Icon{n}_big.png') for n in (1, 2, 3, 4, 14, 15, 16, 17, 20)}
 
-txt = ('/* Crónicas de Valdemora — sprites da CraftPix.net: Top-Down Roguelike, Medieval Fortress, Island Adventure, Urban Zombie e Magic Book.\n'
+# --- bestiário 16x16 ("Basic Asset Pack"): só animação de espera, 4 fotogramas ---
+BAP = pathlib.Path(sys.argv[6] if len(sys.argv) > 6 else '/tmp/bap')
+MINI = {'ossos': 'Decrepit Bones', 'ghoul': 'Sand Ghoul', 'cadaver': 'Bound Cadaver', 'morcego': 'Vampire Bat', 'necromante': 'adept necromancer',
+        'arconte': 'Sword Archon', 'lobo': 'Timber Wolf', 'javali': 'Mad Boar', 'formiga': 'Soldier Ant', 'formigaLava': 'Lava Ant', 'besouro': 'Rhino Beetle',
+        'goblin': 'goblin fighter', 'goblinChefe': 'goblin fanatic', 'assassino': 'halfling assassin', 'vilao': 'Depraved Blackguard',
+        'pastor': 'Gentle Shepard', 'clerigo': 'Favored Cleric', 'ovelha': 'Pasturing Sheep', 'galinha': 'Clucking Chicken', 'ganso': 'Honking Goose', 'porco': 'Dainty Pig'}
+kit['mini'] = {}
+for k2, n in MINI.items():
+    f = next(q for q in sorted(BAP.rglob('*.png')) if q.parent.name.lower() == n.lower() and 'animations' in str(q).lower())
+    kit['mini'][k2] = u2(f)
+
+# --- retratos (Free 39 Portraits, CraftPix) e interface (Humble Gift, Humble Pixel) ---
+FP = pathlib.Path(sys.argv[7] if len(sys.argv) > 7 else '/tmp/fp')
+HG = pathlib.Path(sys.argv[8] if len(sys.argv) > 8 else '/tmp/hg/Humble Gift - v1.3/PNG/SpriteSheet.png')
+RET = {'aldeoes': '16', 'frei': '13', 'goncalo': '15', 'mercador': '03', 'prisioneiro': '17', 'ferido': '18', 'mimico': '20',
+       'lobo': '06', 'goblin': '08', 'gorm': '10', 'esqueleto': '24', 'javali': '35', 'besouro': '29', 'rasca': '01', 'bandido': '32',
+       'ghoul': '22', 'bertolo': '22', 'morcego': '11', 'cassio': '25', 'guardiao': '34',
+       'bras': '36', 'brigida': '02', 'tome': '33', 'mensageiro': '14', 'alfa': '06'}
+kit['retratos'] = {k: u2(FP / f'2 Portraits with back/Icons_{n}.png') for k, n in RET.items()}
+hg = Image.open(HG).convert('RGBA')
+def corte(b):
+    buf = io.BytesIO(); hg.crop(b).save(buf, 'PNG', optimize=True); return 'data:image/png;base64,' + base64.b64encode(buf.getvalue()).decode()
+kit['ui'] = {n: corte(b) for n, b in {
+  'painel': (32, 128, 189, 193), 'botao': (52, 1557, 109, 1579), 'botao2': (132, 1557, 189, 1577), 'slot': (40, 550, 73, 586),
+  'estrela': (552, 232, 568, 248), 'gema': (584, 232, 600, 248), 'livro': (624, 145, 640, 160), 'erva': (592, 177, 608, 192), 'pena': (657, 176, 672, 191)}.items()}
+
+txt = ('/* Crónicas de Valdemora — sprites da CraftPix.net: Top-Down Roguelike, Medieval Fortress, Island Adventure, Urban Zombie e Magic Book; bestiário 16x16 "Basic Asset Pack".\n'
        '   Embutidos aqui porque a licença não permite redistribuir os ficheiros soltos. Gerado por tools/kit.py. */\n'
        '(function (G) {\n  (G.CP = G.CP || {}).KIT = ' + json.dumps(kit) + ';\n})(typeof window !== \'undefined\' ? window : globalThis);\n')
 (R / 'js/kit.js').write_text(txt)

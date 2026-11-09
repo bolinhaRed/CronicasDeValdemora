@@ -265,3 +265,107 @@ canvas.token.rt { width: 46px; height: 46px; image-rendering: pixelated; }
 .livro .pag p { margin: 2px 0 6px; }
 /* ícones de feitiço nos botões */
 img.fi { width: 20px; height: 20px; vertical-align: -4px; margin-right: 6px; image-rendering: pixelated; border-radius: 3px; }
+
+/* ---------- Rosa dos ventos ---------- */
+.rosa { position: absolute; left: 28px; bottom: 12px; width: 128px; height: 128px; display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); gap: 2px;
+  background: radial-gradient(circle, rgba(38,44,51,.9) 0 38%, rgba(38,44,51,.55) 39% 70%, transparent 71%); border-radius: 50%; }
+.rosa button { position: relative; border: 1px solid #56606b; background: linear-gradient(#3e4650, #2a3038); color: #f3e4bd; border-radius: 10px; font-size: 18px; line-height: 1; padding: 0;
+  box-shadow: 0 2px 0 rgba(0,0,0,.4); min-width: 40px; min-height: 40px; }
+.rosa button:disabled { opacity: .18; box-shadow: none; }
+.rosa button.nova { border-color: var(--ouro); color: #ffe39a; box-shadow: 0 0 10px rgba(216,170,60,.45), 0 2px 0 rgba(0,0,0,.4); }
+.rosa button.tranc { border-color: #8a3f31; color: #f0a090; }
+.rosa button.recuar { border-style: dashed; }
+.rosa button i { position: absolute; right: -4px; top: -6px; font-style: normal; font-size: 11px; background: #1b1a29; border: 1px solid #56606b; border-radius: 8px; padding: 0 4px; color: #ffe39a; }
+.rosa .r-norte { grid-area: 1 / 2; } .rosa .r-oeste { grid-area: 2 / 1; } .rosa .r-este { grid-area: 2 / 3; } .rosa .r-sul { grid-area: 3 / 2; }
+.rosa .r-c { grid-area: 2 / 2; position: relative; border-radius: 50%; background: radial-gradient(circle, #d8aa3c 0 14%, #5a4220 15% 22%, transparent 23%); }
+.rosa .r-c b { position: absolute; font: 700 9px var(--fonte); color: #a9b0b9; }
+.rosa .l-N { top: 0; left: 50%; transform: translateX(-50%); } .rosa .l-S { bottom: 0; left: 50%; transform: translateX(-50%); }
+.rosa .l-O { left: 1px; top: 50%; transform: translateY(-50%); } .rosa .l-E { right: 1px; top: 50%; transform: translateY(-50%); }
+.dado:not([hidden]) ~ .rosa, .rosa:has(~ .dado:not([hidden])) { opacity: 0; }
+
+/* ---------- Papel (Humble Gift) ---------- */
+.papel { border: 6px solid transparent; border-image: var(--ui-painel) 6 fill / 6px stretch; image-rendering: pixelated; color: #3b2418; }
+.bt-papel { font: inherit; border: 6px solid transparent; border-image: var(--ui-botao) 6 fill / 6px stretch; color: #3b2418; padding: 4px 10px; text-align: center; image-rendering: pixelated; background: none; }
+.bt-papel:active { border-image-source: var(--ui-botao2); transform: translateY(1px); }
+.bt-papel:disabled { opacity: .45; }
+.evento { display: grid; grid-template-columns: 56px 1fr; gap: 6px 10px; padding: 6px 4px; margin: 0 0 6px; width: 100%; }
+.evento .ev-r { width: 56px; height: 56px; image-rendering: pixelated; border-radius: 6px; }
+.evento b { font: 400 19px var(--fonte-t); color: #6b2a1e; }
+.evento p { margin: 2px 0 0; font-size: 15px; line-height: 1.3; }
+.evento .ev-op { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+.evento .ev-op .bt-papel { flex: 1 1 45%; font-size: 15px; }
+.nivel { padding: 8px 6px; display: grid; gap: 8px; }
+.nivel > b { font: 400 22px var(--fonte-t); color: #6b2a1e; }
+.nivel .niveis .bt-papel { font-size: 14px; }
+.talentos { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.talentos .tal { display: grid; text-align: left; }
+.talentos .tal small { font-size: 13px; color: #6b4a34; }
+.tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.tag { font-size: 12.5px; padding: 1px 8px; border-radius: 10px; background: rgba(0,0,0,.25); color: #d9cba5; display: inline-flex; gap: 4px; align-items: center; }
+.tag.rel { color: #f3d27a; } .tag img { width: 12px; height: 12px; }
+.ameaca { margin: 0; color: #f0c84a; font-size: 14px; letter-spacing: 1px; } .ameaca span { color: #4a525c; }
+.folego { display: inline-flex; align-items: center; gap: 2px; font-size: 13px; color: #9fd0ff; font-weight: 700; }
+.folego img { width: 14px; height: 14px; image-rendering: pixelated; }
+.besti { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+.bc { background: var(--painel); border: 1px solid var(--linha); border-radius: 8px; padding: 6px; display: grid; justify-items: center; text-align: center; gap: 2px; }
+.bc .bc-i { width: 48px; height: 48px; image-rendering: pixelated; display: grid; place-items: center; font: 700 24px var(--fonte); color: #4a525c; }
+.bc b { font-size: 13px; } .bc small { font-size: 11.5px; color: var(--texto-2); }
+.bc.desconhecida { opacity: .55; }
+
+/* ---------- Tabuleiro de combate ---------- */
+.ecra-exp.combate .painel { max-height: 64vh; }
+.ecra-exp.combate .acoes { max-height: none; }
+.cb { width: 100%; display: grid; gap: 6px; }
+.cb-ints { display: grid; gap: 6px; }
+.int { display: grid; grid-template-columns: 44px 1fr; gap: 8px; align-items: center; padding: 2px 4px; }
+.int.chefe { filter: drop-shadow(0 0 6px rgba(240,200,74,.5)); }
+.int-r { width: 44px; height: 44px; image-rendering: pixelated; border-radius: 6px; background: #2a2f36; }
+.int-t { display: grid; gap: 1px; line-height: 1.2; }
+.int-t b { font: 400 16px var(--fonte-t); color: #6b2a1e; }
+.int-t small { font-size: 12px; color: #6b4a34; } .int-t small b { font: 700 12px var(--fonte); color: #6b2a1e; }
+.int-a { font-size: 13.5px; font-weight: 700; display: flex; align-items: center; gap: 4px; }
+.ic-i { width: 18px; height: 18px; image-rendering: pixelated; border-radius: 3px; flex: none; }
+.int-pv { display: flex; gap: 2px; } .int-pv i { width: 9px; height: 5px; background: #c9a98a; border-radius: 1px; } .int-pv i.on { background: #c0402e; }
+.cb-dados { display: flex; justify-content: center; gap: 8px; }
+.cd { background: none; border: 2px solid transparent; border-radius: 10px; padding: 2px 2px 0; display: grid; justify-items: center; color: var(--texto-2); }
+.cd svg { width: 52px; height: 52px; } .cd small { font-size: 11px; }
+.cd.sel { border-color: var(--ouro); background: rgba(216,170,60,.12); }
+.cd.usado { opacity: .35; } .cd.perdido { opacity: .2; }
+.cd.rola svg { animation: cai .45s cubic-bezier(.3,1.6,.5,1); }
+.cb-ajuda { margin: 0; text-align: center; font-size: 13px; color: var(--texto-2); }
+.cb-slots { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.sl { text-align: left; display: grid; gap: 1px; padding: 2px 4px; min-height: 76px; background: none; font: inherit; cursor: pointer; }
+.sl b { font: 400 16px var(--fonte-t); color: #6b2a1e; } .sl small { font-size: 11.5px; color: #6b4a34; line-height: 1.15; }
+.sl-d { display: flex; gap: 2px; min-height: 26px; } .sl-d i { width: 26px; height: 26px; display: block; } .sl-d svg { width: 26px; height: 26px; }
+.sl-d i.vz { border: 2px dashed #c9a07a; border-radius: 6px; width: 22px; height: 22px; }
+.sl em { font-style: normal; font-size: 12px; font-weight: 700; line-height: 1.2; } .sl em.ok { color: #2f6b1e; } .sl em.ko { color: #a3301f; }
+.sl.s-fuga, .sl.s-banir { min-height: 60px; }
+.cb-res { text-align: center; font-size: 14px; color: var(--texto-2); } .cb-res b { color: var(--texto); font-size: 16px; } .cb-res b.ko { color: #ef8f7c; }
+.cb-bts { display: flex; flex-wrap: wrap; gap: 6px; } .cb-bts .bt { flex: 1 1 45%; text-align: center; padding: 10px; font-size: 15px; }
+.cb-bts .bt-p { flex-basis: 100%; }
+
+.ecra-exp.combate .rosa { display: none; }
+.ecra-exp.combate .sl { min-height: 64px; }
+
+/* ---------- Campanha ---------- */
+.cronica { padding: 6px 4px; display: grid; gap: 6px; }
+.cr-t { display: flex; justify-content: space-between; align-items: baseline; }
+.cr-t b { font: 400 21px var(--fonte-t); color: #6b2a1e; } .cr-t span { font-size: 13px; color: #6b4a34; }
+.cronica p { font-size: 15px; }
+.sombra { display: flex; align-items: center; gap: 3px; font-size: 13px; color: #6b4a34; } .sombra span { margin-right: 4px; }
+.sombra i { width: 12px; height: 8px; border-radius: 2px; background: #d7b48c; } .sombra i.on { background: #4a2a52; box-shadow: 0 0 4px rgba(74,42,82,.6); }
+.hist-et { margin: 4px 0 -4px; font: 400 15px var(--fonte-t); color: #f0c84a; }
+.missao.hist { border-color: #b88a2a; box-shadow: 0 0 14px rgba(216,170,60,.18); }
+.comps { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.comp { display: grid; grid-template-columns: 40px 1fr; gap: 0 8px; text-align: left; background: var(--painel); border: 1px solid var(--linha); border-radius: 10px; padding: 8px; }
+.comp img, .comp .sem { grid-row: span 2; width: 40px; height: 40px; image-rendering: pixelated; border-radius: 6px; display: grid; place-items: center; background: #2a2f36; color: var(--texto-2); }
+.comp b { font-size: 14px; } .comp small { font-size: 12px; color: var(--texto-2); line-height: 1.2; }
+.comp.on { border-color: var(--ouro); box-shadow: 0 0 0 1px var(--ouro); }
+.tag.fer { color: #ef8f7c; }
+.cena-ov { position: fixed; inset: 0; z-index: 40; background: rgba(10,10,16,.75); display: flex; align-items: flex-end; justify-content: center; padding: 16px 12px calc(24px + env(safe-area-inset-bottom, 0px)); animation: entra .3s; }
+.cena-c { width: min(560px, 100%); display: grid; grid-template-columns: auto 1fr; gap: 10px; padding: 8px 6px; }
+.cena-c img { width: 72px; height: 72px; image-rendering: pixelated; border-radius: 8px; }
+.cena-c b { font: 400 21px var(--fonte-t); color: #6b2a1e; } .cena-c p { margin: 4px 0 0; font: 17px/1.4 var(--fonte-t); }
+.cena-b { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; } .cena-b small { color: #6b4a34; }
+
+.chip.ferido b { color: #ef8f7c; }

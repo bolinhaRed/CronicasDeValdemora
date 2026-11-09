@@ -114,7 +114,7 @@
   }
 
   /* ---------- Povoar ---------- */
-  function povoar(d, tpl, v, r) {
+  function povoar(d, tpl, v, r, m) {
     const T = CP.TIPOS[tpl.tipo];
     const dist = bfs(d, d.inicio, null);
     const normais = d.salas.filter(s => !s.oculta);
@@ -150,6 +150,7 @@
       const oc = d.salas[d.oculta];
       oc.nome = 'Câmara oculta'; oc.desc = 'Uma sala selada há séculos. O pó cobre tudo por igual.';
       oc.itens.push(r.pick(['anel', 'idolo', 'calice'])); oc.ouro = r.int(4, 9);
+      if (r.chance(0.6)) oc.reliquia = true;
       if (viz === obj.id || viz === d.inicio) {
         em.mec = false;                                    // passa a ser só uma passagem secreta
         d.salas[viz].escondido.push({ k: 'secreta', e: em.id });
@@ -168,6 +169,11 @@
       }
     }
 
+    // ameaça da missão: criaturas mais fortes e mais numerosas
+    const am = Math.max(1, Math.min(3, m.ameaca || 1));
+    const reforcar = mo => { mo.pv += (mo.chefe ? 2 : 1) * (am - 1); mo.pvMax = mo.pv; if (am >= 3) mo.atk += 1; return mo; };
+    obj.monstros.forEach(reforcar);
+
     // conteúdo de enchimento
     for (const s of d.salas) {
       if (s.id === d.inicio || s.id === obj.id || s.oculta) continue;
@@ -176,8 +182,11 @@
         if (t < 0.25) s.armadilha = { gasta: false };
         continue;
       }
-      if (t < 0.25) { /* vazia */ }
-      else if (t < 0.55) s.monstros.push(monstro(r.pick(T.monstros), { acordado: r.chance(0.4) }));
+      if (t < 0.25) { if (am >= 2 && r.chance(0.2 * (am - 1))) s.monstros.push(reforcar(monstro(r.pick(T.monstros), { acordado: r.chance(0.4) }))); }
+      else if (t < 0.55) {
+        s.monstros.push(reforcar(monstro(r.pick(T.monstros), { acordado: r.chance(0.4) })));
+        if (am >= 2 && r.chance(0.25 * (am - 1))) s.monstros.push(reforcar(monstro(r.pick(T.monstros), { acordado: s.monstros[0].acordado })));
+      }
       else if (t < 0.68) s.armadilha = { gasta: false };
       else if (t < 0.78) s.restos = { nota: r.pick(CP.NOTAS), saque: r.chance(0.5) ? 'pocao' : null, ouro: r.int(2, 6) };
       else if (t < 0.9) s.escondido.push({ k: 'tesouro', item: r.pick(['broche', 'calice', 'anel']) });
@@ -185,6 +194,12 @@
       if (r.chance(0.25)) s.ouro += r.int(1, 4);
       if (r.chance(0.15)) s.escondido.push({ k: 'ouro', n: r.int(3, 8) });
     }
+    // eventos com escolhas (1 ou 2 por masmorra) em salas sem nada
+    const livres = r.shuffle(d.salas.filter(s => s.id !== d.inicio && s.id !== obj.id && !s.oculta && !usadas.has(s.id) && !s.monstros.length
+      && !s.armadilha && !s.restos && !s.inscricao && !s.mec && s.pista === undefined));
+    const evs = r.shuffle(Object.keys(CP.EVENTOS).filter(k => CP.EVENTOS[k].tipos.includes(tpl.tipo)));
+    const nEv = Math.min(livres.length, evs.length, r.int(1, 2));
+    for (let i = 0; i < nEv; i++) livres[i].evento = { id: evs[i], feito: false, mimico: evs[i] === 'bau' && r.chance(0.5) };
     return true;
   }
 
@@ -216,7 +231,7 @@
     for (let t = 0; t < 60; t++) {
       const d = masmorra(m.seed + '|mapa|' + t);
       const r = new CP.RNG(m.seed + '|conteudo|' + t);
-      if (povoar(d, tpl, v, r) && validar(d, tpl, v).length === 0) { d.tipo = tpl.tipo; return d; }
+      if (povoar(d, tpl, v, r, m) && validar(d, tpl, v).length === 0) { d.tipo = tpl.tipo; return d; }
     }
     throw new Error('Não foi possível gerar a masmorra para ' + m.seed);
   }

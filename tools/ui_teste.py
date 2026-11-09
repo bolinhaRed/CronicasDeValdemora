@@ -12,6 +12,7 @@ with sync_playwright() as p:
         pg.screenshot(path=f'icon-{n}.png'); pg.close()
     pg = b.new_page(viewport={'width': 390, 'height': 844}, device_scale_factor=2, has_touch=True)
     pg.on('pageerror', lambda e: erros.append(str(e)))
+    pg.on('requestfailed', lambda r: erros.append('falhou: ' + r.url[-60:]))
     pg.on('console', lambda m: erros.append(m.text) if m.type == 'error' and 'ERR_NAME' not in m.text else None)
     pg.goto(url); pg.evaluate('localStorage.clear()'); pg.reload(); pg.wait_for_timeout(300)
     pg.screenshot(path='/tmp/s1_criar.png')
@@ -21,17 +22,28 @@ with sync_playwright() as p:
     def esperar():
         for _ in range(200):
             if pg.locator('#ecra-exp').is_hidden(): return
-            if pg.locator('#acoes button:not([disabled])').count(): return
+            if pg.locator('#acoes button:not([disabled]), #rosa button:not([disabled])').count(): return
             try: pg.click('#narr', force=True, timeout=300)
             except Exception: pass
             pg.wait_for_timeout(50)
     esperar(); pg.wait_for_timeout(300); pg.screenshot(path='/tmp/s3_exp.png')
     pri = ['Devolver', 'Mostrar', 'Pegar', 'Oferecer', 'Colocar', 'Atacar', 'Apanhar', 'Premir', 'Ler', 'Investigar', 'Seguir', 'Arrombar', 'Abrir', 'Regressar']
     tirou = 0
+    combates = 0
     for passo in range(160):
         if pg.locator('#ecra-exp').is_hidden(): break
-        bts = pg.locator('#acoes button:not([disabled])')
-        rot = [bts.nth(i).inner_text() for i in range(bts.count())]
+        if pg.locator('[data-ronda]:not([disabled])').count():
+            # tabuleiro de combate: ataque com um dado, defesa com outro, terminar a ronda
+            try:
+                pg.click('[data-dado="1"]'); pg.click('[data-slot="ataque"]')
+                pg.click('[data-dado="0"]'); pg.click('[data-slot="defesa"]')
+                if combates == 1: pg.screenshot(path='/tmp/s5_combate.png')
+                combates += 1
+                pg.click('[data-ronda]')
+            except Exception: pass
+            esperar(); continue
+        bts = pg.locator('#acoes button:not([disabled]), #rosa button:not([disabled])')
+        rot = [(bts.nth(i).get_attribute('aria-label') or bts.nth(i).inner_text()) for i in range(bts.count())]
         if not rot: esperar(); continue
         esc = next((i for pf in pri for i, r in enumerate(rot) if r.startswith(pf)), 0)
         if rot[esc].startswith('Atacar') and not tirou:
